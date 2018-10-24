@@ -7,3 +7,18 @@
 2. Retrieving segmentations. Given a query genomic region or set of regions, or a particular experiment or set of experiments, the system will be able to return a filtered set of genomic segments that link to the given inputs. For example, a user may wish to query the set of TAD boundaries (found in a particular segmentation provider) associated with an input set of transcription factor binding sites.
 
 3. Retrieving annotations for a given region or region set. For example, the user provides a set of genomic regions and wants to retrieve all annotations for those regions. Biological use cases: given a set of genetic variants from a GWAS study, return the functional annotations across data providers for each disease-associated SNP.
+
+
+## Kibana instructions
+
+Kibana's console: http://52.23.250.217:5601/app/kibana#/dev_tools/console?_g=() 
+
+Example query:
+```
+GET experiments/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+```
