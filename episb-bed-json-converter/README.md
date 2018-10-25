@@ -1,12 +1,7 @@
-# SheffieldApp #
+commands to run code: 
 
-## Build & Run ##
+sbt "run <regions/ directory from LOLA core db or a directory complying to such a format>
 
-```sh
-$ cd sheffieldapp
-$ sbt
-> jetty:start
-> browse
-```
+The program will create matching .jsonld fiules for each bed file found in index.txt listing as per LOLA database. It will also attempt to load the json documents into elasticsearch server on localhost.
 
-If `browse` doesn't launch your browser, manually open [http://localhost:8080/](http://localhost:8080/) in your browser.
+Code is VERY beta - needs a lot more polishing, refactoring, cleaning up and error checking.
