@@ -99,7 +99,6 @@ class StudyElasticLoaderConverter extends DataLoader[Unit] with LocalBedFileRead
     val sanitizedPath = if (path.endsWith("/")) path else path+"/"
     // get author info
     val study:Study = getStudyFromLOLACollectionFile(sanitizedPath)
-    println(study)
     // get study and experiment info
     val expMap:Map[String,Experiment] = getExperimentFromLOLAIndexFile(sanitizedPath)
     // get list of bed files to process

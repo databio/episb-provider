@@ -1,42 +1,59 @@
 package com.github.oddodaoddo.episb
 
+import java.net.InetAddress
+
+import org.json4s.native.JsonMethods._
+import org.json4s.JsonDSL._
+
 import org.scalatra._
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.action.search.SearchType
-import org.elasticsearch.index.query.{QueryBuilders, RangeQueryBuilder, BoolQueryBuilder}
+import org.elasticsearch.client.transport.TransportClient
+import org.elasticsearch.common.transport.TransportAddress
+import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders, RangeQueryBuilder}
 import org.elasticsearch.index.query.QueryBuilders._
+import org.elasticsearch.transport.client.PreBuiltTransportClient
+import org.elasticsearch.common.settings.Settings
 
-class episbRestServlet extends ScalatraServlet {
+object ElasticConnector {
+  def getESClient(host: String, port: Int): Either[String,TransportClient] = {
+    try {
+      Right(new PreBuiltTransportClient(Settings.EMPTY).
+        addTransportAddress(new TransportAddress(InetAddress.getByName(host), port)))
+    } catch {
+      case e: Exception => Left(s"Could not establish connection to Elastic cluster. Reason: ${e}")
+    }
+  }
+}
 
-  val esclient = ElasticConnector.getESClient("localhost", 9300)
+case class JsonError(reason:String) {
+  override def toString:String = {
+    val json = ("result" -> "None") ~
+      ("error" -> reason)
+    compact(render(json))
+  }
+}
+
+class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
 
   get("/get/fromSegment/:start/:end") {
+    // get the parameters to the query
     val segStart:Int = params("start").toInt
     val segEnd:Int = params("end").toInt
 
-    println(s"segStart=${segStart}")
-    println(s"segEnd=${segEnd}")
-
-    if (segStart>=segEnd)
-      """{ "result" : "None", "error" : "segStart>=segEnd" }"""
+    if (segStart>segEnd)
+      JsonError(s"segStart(${segStart}) > segEnd(${segEnd})").toString
     else {
-
-      val range1 = new RangeQueryBuilder("annotationList.Segment.segStart").gte(segStart).lte(segEnd)
-      //val range2 = new RangeQueryBuilder("annotationList.Segment.segEnd").gte(segStart).lte(segEnd)
-      //val boolQ = new BoolQueryBuilder().must(range1).must(range2)
+      val range1 = new RangeQueryBuilder("Segment.segStart").gte(segStart).lte(segEnd)
+      val range2 = new RangeQueryBuilder("Segment.segEnd").gte(segStart).lte(segEnd)
 
       // prepare an elastic query
-      val response: SearchResponse = esclient.prepareSearch("experiments").
+      val response: SearchResponse = esclient.prepareSearch("annotations").
         setQuery(range1).
-        setPostFilter(range1).
-        //setPostFilter(QueryBuilders.rangeQuery("annotationList.Segment.segEnd").gte(segStart)).
-        //setPostFilter(QueryBuilders.rangeQuery("annotationList.Segment.segEnd").lt(segEnd)).
-        //setFrom(0).setSize(100).setExplain(true).get
+        setPostFilter(range2).
         execute.actionGet
 
-      val resp = response.toString
-      println(resp)
-      resp
+      response.toString
     }
   }
 }
