@@ -14,6 +14,8 @@ $ sbt
 
 Then launch a browser and point it to localhost:8080
 
+NB: Going to <url>:8080/<type anything here>  as in the above localhost:8080/list will make the server list all the "paths" it is listening to (effectively listing all the REST API points it knows).
+
 ## Dependencies ##
 
 The REST API code depends on a running local instance of Elasticsearch. This is where all the queries are performed in the background and results served back to the client.
