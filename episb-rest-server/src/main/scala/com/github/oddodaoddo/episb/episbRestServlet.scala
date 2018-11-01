@@ -56,4 +56,8 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
       response.toString
     }
   }
+
+  post("/post/fromSegmentSet") {
+    ""
+  }
 }

@@ -27,3 +27,5 @@ There are a lot of "FIXME" and configuration issues to get the project to produc
 ## Future ##
 
 The proper way to run the code is to build it into a .war file (which is built every time a "package") command is run from sbt. The .war artifact can then be copied into a directory of a running Tomcat server, which will in turn "explode" the .war file and serve it immediately.
+
+See this Scalatra doc for production deployment: http://scalatra.org//guides/2.6/deployment/servlet-container.html
