@@ -8,7 +8,9 @@ Epigenome Switchboard is an example of a query overlay server
 
 ### 2. Data provider (regions.databio.org ???)
 
-Currently stored in [episb-rest-server](/episb-rest-server)
+Currently stored in [episb-rest-server](/episb-rest-server).
+
+This is a RESTful server that provides access to the raw data via the *Data provider API* (which is still under development).
 
 ### 3. Data provider API
 
@@ -22,7 +24,7 @@ Documented API for interacting with the overlay query server.
 
 
 
-## Example queries
+## Example queries for user-facing query API
 
 1. Translating annotation limits into region sets (Retrieving integrated region sets). For example, give me the set of regions with annotation values above *x* in cell-type *y* but below *a* in cell-types *b*, *c*, and *d*. A more complicated example: a user could request that the system return the set of genomic regions that are annotated as filling the following four critera: First, they have open chromatin in macrophages, but not in other hematopoietic cell types, as defined by the ENCODE cross cell-type chromatin analysis; second, they have H3K27ac in M1 macrophages but not in M2 macrophages, as defined by the BLUEPRINT project data; third, they are polycomb repressed in hematopoietic stem cells, as defined by data from the Roadmap Epigenomics project; and fourth, they are within a set of regions defined as CRISPR-targetable in private lab-specific experimental results.
 
