@@ -30,7 +30,8 @@ class LocalFileWriter(path:String) {
 
 class ElasticSearchWriter(host:String, port:Int) {
   // establish elasticsearch connection
-  private val esclient:TransportClient = new PreBuiltTransportClient(Settings.EMPTY).
+  private val settings:Settings = Settings.builder().put("cluster.name", "episb-elastic-cluster").build()
+  private val esclient:TransportClient = new PreBuiltTransportClient(settings).
       addTransportAddress(new TransportAddress(InetAddress.getByName(host),port))
 
   def elasticWrite(data:String) = {

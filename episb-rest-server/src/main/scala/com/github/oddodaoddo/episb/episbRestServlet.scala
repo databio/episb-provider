@@ -18,7 +18,8 @@ import org.elasticsearch.common.settings.Settings
 object ElasticConnector {
   def getESClient(host: String, port: Int): Either[String,TransportClient] = {
     try {
-      Right(new PreBuiltTransportClient(Settings.EMPTY).
+      val settings:Settings = Settings.builder().put("cluster.name", "episb-elastic-cluster").build()
+      Right(new PreBuiltTransportClient(settings).
         addTransportAddress(new TransportAddress(InetAddress.getByName(host), port)))
     } catch {
       case e: Exception => Left(s"Could not establish connection to Elastic cluster. Reason: ${e}")
@@ -51,13 +52,14 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
       val response: SearchResponse = esclient.prepareSearch("annotations").
         setQuery(range1).
         setPostFilter(range2).
-        execute.actionGet
+        setSize(10000).
+        get
 
       response.toString
     }
   }
 
   post("/post/fromSegmentSet") {
-    ""
+    println(request.body)
   }
 }
