@@ -2,9 +2,9 @@ package com.github.oddodaoddo.episb
 
 import java.net.InetAddress
 
+import com.typesafe.config.ConfigFactory
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
-
 import org.scalatra._
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.action.search.SearchType
@@ -18,9 +18,13 @@ import org.elasticsearch.common.settings.Settings
 object ElasticConnector {
   def getESClient(host: String, port: Int): Either[String,TransportClient] = {
     try {
-      val settings:Settings = Settings.builder().put("cluster.name", "episb-elastic-cluster").build()
+      val conf = ConfigFactory.load()
+      val settings:Settings = Settings.builder().
+        put("cluster.name", conf.getString("episb-rest-server.elastic-cluster-name")).build()
       Right(new PreBuiltTransportClient(settings).
-        addTransportAddress(new TransportAddress(InetAddress.getByName(host), port)))
+        addTransportAddress(new TransportAddress(InetAddress.
+        getByName(conf.getString("episb-rest-server.elastic-host")),
+          conf.getInt("episb-rest-server.elastic-port"))))
     } catch {
       case e: Exception => Left(s"Could not establish connection to Elastic cluster. Reason: ${e}")
     }

@@ -3,9 +3,9 @@ package com.github.oddodaoddo.sheffieldapp.datareader
 import java.io.{FileWriter, IOException}
 import java.net.InetAddress
 
-import org.json4s._
+import com.typesafe.config._
+
 import org.json4s.native.JsonMethods._
-import org.json4s.JsonDSL._
 
 import com.github.oddodaoddo.sheffieldapp.datastructures.Annotation
 import org.elasticsearch.action.index.IndexResponse
@@ -28,11 +28,21 @@ class LocalFileWriter(path:String) {
   }
 }
 
+object ElasticConnector {
+  def getESClient:TransportClient = {
+    // read config file
+    val conf = ConfigFactory.load()
+    val settings:Settings = Settings.builder().
+      put("cluster.name", conf.getString("episb-bed-json-converter.elastic-cluster-name")).build()
+    new PreBuiltTransportClient(settings).
+      addTransportAddress(new TransportAddress(InetAddress.
+        getByName(conf.getString("episb-bed-json-converter.elastic-host")),
+          conf.getInt("episb-bed-json-converter.elastic-port")))
+  }
+}
 class ElasticSearchWriter(host:String, port:Int) {
   // establish elasticsearch connection
-  private val settings:Settings = Settings.builder().put("cluster.name", "episb-elastic-cluster").build()
-  private val esclient:TransportClient = new PreBuiltTransportClient(settings).
-      addTransportAddress(new TransportAddress(InetAddress.getByName(host),port))
+  private val esclient = ElasticConnector.getESClient
 
   def elasticWrite(data:String) = {
     val esresponse:IndexResponse = esclient.prepareIndex("annotations","annotation").
