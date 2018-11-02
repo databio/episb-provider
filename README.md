@@ -8,6 +8,8 @@ Epigenome Switchboard is an example of a query overlay server
 
 ### 2. Data provider (regions.databio.org ???)
 
+Currently stored in [episb-rest-server](/episb-rest-server)
+
 ### 3. Data provider API
 
 ### 4. Overlay query server (the epigenome switchboard, episb.org)
@@ -17,6 +19,7 @@ This server provides 2 things: a web interface (like http://db.databio.org/coord
 ### 5. User-facing query API
 
 Documented API for interacting with the overlay query server.
+
 
 
 ## Example queries
