@@ -1,19 +1,20 @@
 package com.github.oddodaoddo.episb
 
+import java.math.BigInteger
 import java.net.InetAddress
 
 import com.typesafe.config.ConfigFactory
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 import org.scalatra._
-import org.elasticsearch.action.search.SearchResponse
-import org.elasticsearch.action.search.SearchType
+import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse, SearchType}
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.TransportAddress
 import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders, RangeQueryBuilder}
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
+import org.json4s.JsonAST.JNothing
 
 object ElasticConnector {
   def getESClient(host: String, port: Int): Either[String,TransportClient] = {
@@ -64,6 +65,36 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
   }
 
   post("/post/fromSegmentSet") {
-    println(request.body)
+    def queueSearchRequests(s:SearchRequestBuilder, rs:List[RangeQueryBuilder]):SearchRequestBuilder =  {
+      rs.foreach(x => s.setPostFilter(x))
+      s
+    }
+
+    val json = parse(request.body)
+    if (json \ "segmentSet" == JNothing)
+      "error!"
+    else {
+      // get all segStart,segEnd pairs
+      val sset:List[Map[String,Int]] = (json \ "segmentSet").values.asInstanceOf[List[Map[String,Int]]]
+      // take only the segmentSets that have a segStart/segEnd pair and where segEnd>segStart
+      val filtered_sset = sset.filter(x => x.contains("segStart") && x.contains("segEnd")).
+        filter(x => x("segEnd").asInstanceOf[BigInteger].intValue > x("segStart").asInstanceOf[BigInteger].intValue).
+        map(x => Map("segStart" -> x("segStart").asInstanceOf[BigInteger].intValue,
+          "segEnd"-> x("segEnd").asInstanceOf[BigInteger].intValue))
+      // prepare the elastic compound query
+      val responses:List[(Int,Int,String)] = filtered_sset.map(x => (x("segStart"),x("segEnd"),{
+        val range1 = new RangeQueryBuilder("Segment.segStart").gte(x("segStart")).lte(x("segEnd"))
+        val range2 = new RangeQueryBuilder("Segment.segEnd").gte(x("segStart")).lte(x("segEnd"))
+       // prepare an elastic query
+        esclient.prepareSearch("annotations").
+          setQuery(range1).
+          setPostFilter(range2).
+          setSize(100).
+          get.toString
+      }))
+      compact(render(responses.map(x => {
+        ("segStart" -> x._1) ~ ("segEnd" -> x._2) ~("response" -> x._3)
+      })))
+    }
   }
 }
