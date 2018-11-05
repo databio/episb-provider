@@ -1,6 +1,6 @@
-# Epigenome switchboard
+# Epigenome switchboard data provider
 
-Epigenome Switchboard is an example of a query overlay server
+The data provider serves epigenome data to an `episb-hub`.
 
 ## Project components
 
