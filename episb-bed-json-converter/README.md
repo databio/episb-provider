@@ -1,6 +1,12 @@
+# episb-bed-json-converter
+
+Re: Progress report
+
 commands to run code: 
 
+``
 sbt "run <regions/ directory from LOLA core db or a directory complying to such a format>"
+``
 
 Code can also be compiled via "sbt compile" and the resulting jar can be run via basic java commands (thus bypassing sbt) - I will include instructions on this later.
 
