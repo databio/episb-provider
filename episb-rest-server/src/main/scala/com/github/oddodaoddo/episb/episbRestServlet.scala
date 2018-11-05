@@ -75,12 +75,11 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
       "error!"
     else {
       // get all segStart,segEnd pairs
-      val sset:List[Map[String,Int]] = (json \ "segmentSet").values.asInstanceOf[List[Map[String,Int]]]
+      val sset:List[Map[String,BigInt]] = (json \ "segmentSet").values.asInstanceOf[List[Map[String,BigInt]]]
       // take only the segmentSets that have a segStart/segEnd pair and where segEnd>segStart
-      val filtered_sset = sset.filter(x => x.contains("segStart") && x.contains("segEnd")).
-        filter(x => x("segEnd").asInstanceOf[BigInteger].intValue > x("segStart").asInstanceOf[BigInteger].intValue).
-        map(x => Map("segStart" -> x("segStart").asInstanceOf[BigInteger].intValue,
-          "segEnd"-> x("segEnd").asInstanceOf[BigInteger].intValue))
+      val filtered_sset:List[Map[String,Int]] = sset.filter(x => x.contains("segStart") && x.contains("segEnd")).
+        filter(x => x("segEnd").intValue > x("segStart").intValue).
+        map(x => Map("segStart" -> x("segStart").intValue, "segEnd"-> x("segEnd").intValue))
       // prepare the elastic compound query
       val responses:List[(Int,Int,String)] = filtered_sset.map(x => (x("segStart"),x("segEnd"),{
         val range1 = new RangeQueryBuilder("Segment.segStart").gte(x("segStart")).lte(x("segEnd"))
