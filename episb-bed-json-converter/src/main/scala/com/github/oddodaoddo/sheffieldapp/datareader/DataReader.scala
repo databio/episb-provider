@@ -50,7 +50,10 @@ class LocalIndexFile(sanitizedPath:String) extends LocalFileWithHeaderReader(san
   val fileList:List[String] = lns.map(ln =>
     if (columnMappings.contains("filename")) {
       val lnsplit = splitDelimitedLine(ln)
-      Some(lnsplit(columnMappings("filename")))
+      if (lnsplit.size != (columnMappings.keys.max+1) || columnMappings("filename") > lnsplit.size)
+        None
+      else
+        Some(lnsplit(columnMappings("filename")))
     } else None).flatten
 
   // create all the Experiment objects from an index file
