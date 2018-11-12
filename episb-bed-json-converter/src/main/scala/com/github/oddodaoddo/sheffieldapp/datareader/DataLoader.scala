@@ -55,6 +55,9 @@ class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
     val indexFile = new LocalIndexFile(sanitizedPath + "index.txt")
     val expMap:Map[String,Experiment] = indexFile.getExperimentFromLOLAIndexFile
     // get list of bed files to process
+    println("======================================")
+    println(s"Processing ${path}")
+    println(s"Going to run through ${indexFile.fileList.size} bed files")
     indexFile.fileList.
       foreach(bedFileName => {
         val absbedFilePath = sanitizedPath + "regions/" + bedFileName
