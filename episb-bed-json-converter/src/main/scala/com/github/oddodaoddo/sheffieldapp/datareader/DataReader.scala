@@ -76,10 +76,10 @@ class LocalIndexFile(sanitizedPath:String) extends LocalFileWithHeaderReader(san
     lns.tail.map(ln => {
       val x = splitDelimitedLine(ln)
       // WARNING: below assumes we at least have a "filename" column in index.txt
-      if (!x.isEmpty)
-        (x(columnMappings("filename")) -> populateExperiment(x))
-      else
+      if (x.isEmpty || (x.size != (columnMappings.values.max + 1) || columnMappings("filename") > x.size))
         ("" -> Experiment("", "", "","","","",""))
+      else
+        (x(columnMappings("filename")) -> populateExperiment(x))
     }).toMap
   }
 }
