@@ -54,7 +54,7 @@ class ElasticSearchWriter(host:String, port:Int) {
     val bulkReq = esclient.prepareBulk
     val zippedData:List[(Annotation,Int)] = data.zipWithIndex
     zippedData.foreach(x => bulkReq.
-      add(esclient.prepareIndex("annotations", "annotation", x._2.toString).
+      add(esclient.prepareIndex("annotations", "annotation").
       setSource(compact(render(x._1.partialJsonLD)),XContentType.JSON)))
    bulkReq.get()
   }
