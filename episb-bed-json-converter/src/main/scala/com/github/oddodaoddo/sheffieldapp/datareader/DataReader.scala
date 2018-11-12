@@ -18,12 +18,9 @@ class LocalFileReader(path:String) extends DataReader[String](path) {
   def read:Iterator[String] = Source.fromFile(path).getLines
 
   // split a line by trying a few delimeters
-  // ensure that the line has been lowercased first
-  // so that all the column names end up lowercased as well
   def splitDelimitedLine(ln:String):Array[String] = {
-    val lnlc = ln.toLowerCase
     val delimeters = List(",", "\t", " ")
-    val sp:List[Array[String]] = delimeters.map(d => if (lnlc.indexOf(d) != -1) Some(lnlc.split(d)) else None).flatten
+    val sp:List[Array[String]] = delimeters.map(d => if (ln.indexOf(d) != -1) Some(ln.split(d)) else None).flatten
     if (sp.isEmpty) Array() else sp.head
   }
 }
@@ -31,7 +28,7 @@ class LocalFileReader(path:String) extends DataReader[String](path) {
 class LocalFileWithHeaderReader(sanitizedPath:String) extends LocalFileReader(sanitizedPath) {
   // see if a file can be opened
   val lns:List[String] =
-    if (Files.exists(Paths.get(sanitizedPath + "index.txt")))
+    if (Files.exists(Paths.get(sanitizedPath)))
       read.toList
     else
       List()
@@ -57,11 +54,10 @@ class LocalIndexFile(sanitizedPath:String) extends LocalFileWithHeaderReader(san
 
   // create all the Experiment objects from an index file
   // they are indexed by filename (usually a bed file filename)
-  // all column names have been lowercased in the splitting process
   def getExperimentFromLOLAIndexFile:Map[String,Experiment] = {
     // create an Experiment object based on index.txt contents, with variable column structure
     def populateExperiment(ln:Array[String]):Experiment = {
-      val keywords = List("filename","treatment","celltype","species","tissue","antibody","description")
+      val keywords = List("protocol","treatment","celltype","species","tissue","antibody","description")
       val kwval:Map[String,String] = keywords.map(kw =>
         if (columnMappings.contains(kw)) (kw -> ln(columnMappings(kw))) else (kw -> "")).toMap
       Experiment(kwval("protocol"),
