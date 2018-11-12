@@ -50,7 +50,7 @@ class LocalIndexFile(sanitizedPath:String) extends LocalFileWithHeaderReader(san
   val fileList:List[String] = lns.map(ln =>
     if (columnMappings.contains("filename")) {
       val lnsplit = splitDelimitedLine(ln)
-      if (lnsplit.size != (columnMappings.keys.max+1) || columnMappings("filename") > lnsplit.size)
+      if (lnsplit.size != (columnMappings.values.max+1) || columnMappings("filename") > lnsplit.size)
         None
       else
         Some(lnsplit(columnMappings("filename")))
