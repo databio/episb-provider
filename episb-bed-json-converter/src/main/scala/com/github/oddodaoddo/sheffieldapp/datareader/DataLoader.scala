@@ -47,6 +47,7 @@ class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
   // we expect a file named index.txt may exist, collection.txt may exist as well
   // if index.txt does not exist, we will attempt and read the regions/ subfolder as it is
   def loadData(path:String) = {
+    var lines:Int = 0
     val sanitizedPath = if (path.endsWith("/")) path else path+"/"
     // get author info
     val study:Study = new LocalCollectionFile(sanitizedPath + "collection.txt").
@@ -57,18 +58,18 @@ class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
     // get list of bed files to process
     println("======================================")
     println(s"Processing ${path}")
-    println(s"Going to run through ${indexFile.fileList.size} bed files")
     indexFile.fileList.
       foreach(bedFileName => {
         val absbedFilePath = sanitizedPath + "regions/" + bedFileName
         if (Files.exists(Paths.get(absbedFilePath))) {
-          println(s"Processing ${absbedFilePath}")
+          //println(s"Processing ${absbedFilePath}")
           val bedFileLines: List[Array[String]] =
             if (Files.exists(Paths.get(absbedFilePath))) {
               val f = new LocalFileReader(absbedFilePath)
               f.read.toList.map(ln => f.splitDelimitedLine(ln))
             } else
               List.empty
+          lines += bedFileLines.size
           val anns: List[Annotation] = bedFileLines.map(bfl =>
             Annotation(Segment(bfl(0).slice(3, bfl(0).size), bfl(1).toInt, bfl(2).toInt), {
               if (bfl.size > 3) bfl(3) else ""
@@ -80,5 +81,7 @@ class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
       // generate a valid json string from experiment
       // commit to json file on disk
       //fileWrite(bedFilePath+".jsonld", json)
+    println(s"Processed ${indexFile.fileList.size} bed files")
+    println(s"Processed ${lines} annotations.")
   }
 }
