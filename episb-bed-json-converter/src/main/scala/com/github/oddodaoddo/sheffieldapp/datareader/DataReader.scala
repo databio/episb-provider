@@ -35,9 +35,10 @@ class LocalFileWithHeaderReader(sanitizedPath:String) extends LocalFileReader(sa
 
   // get the column mappings for the index.txt file
   // hash table: (column name -> position in line)
+  // lowercase column names only
   val columnMappings:Map[String,Int] =
   if (!lns.isEmpty)
-    splitDelimitedLine(lns.head).zipWithIndex.toMap
+    splitDelimitedLine(lns.head).map(x => x.toLowerCase).zipWithIndex.toMap
   else
     Map()
 }
