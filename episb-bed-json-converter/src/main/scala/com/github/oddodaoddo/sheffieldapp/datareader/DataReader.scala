@@ -39,7 +39,10 @@ class LocalFileWithHeaderReader(sanitizedPath:String) extends LocalFileReader(sa
   // get the column mappings for the index.txt file
   // hash table: (column name -> position in line)
   val columnMappings:Map[String,Int] =
+  if (!lns.isEmpty)
     splitDelimitedLine(lns.head).zipWithIndex.toMap
+  else
+    Map()
 }
 
 // representation of an index.txt file from LOLACore, local to the file system
