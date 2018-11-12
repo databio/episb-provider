@@ -50,6 +50,7 @@ class ElasticSearchWriter(host:String, port:Int) {
   }
 
   def elasticWrite(data:List[Annotation]) = {
+    println(s"Check on elastic write: written ${data.size} annotations to database.")
     val bulkReq = esclient.prepareBulk
     val zippedData:List[(Annotation,Int)] = data.zipWithIndex
     zippedData.foreach(x => bulkReq.
