@@ -8,8 +8,10 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 
-class StudyElasticLoaderConverter(path:String) {
+class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
   private val esclient = new ElasticSearchWriter("localhost", 9300)
+
+  pathsToLoad.foreach(path => loadData(path))
 
   // get a list of files from a directory
   // FIXME: for now we assume our data is in LOLACore format
@@ -44,7 +46,7 @@ class StudyElasticLoaderConverter(path:String) {
   // path points to the top folder of a LOLA core db member study
   // we expect a file named index.txt may exist, collection.txt may exist as well
   // if index.txt does not exist, we will attempt and read the regions/ subfolder as it is
-  def loadData = {
+  def loadData(path:String) = {
     val sanitizedPath = if (path.endsWith("/")) path else path+"/"
     // get author info
     val study:Study = new LocalCollectionFile(sanitizedPath + "collection.txt").
