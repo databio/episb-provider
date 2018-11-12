@@ -63,10 +63,15 @@ case class Study(author:Author, manuscript:String, description:String, date:Stri
   }
 }
 
-case class Experiment(protocol:String,cellType:String,description:String) extends JSONLDable {
+case class Experiment(protocol:String,cellType:String,species:String,
+                      tissue:String,antibody:String,treatment:String,description:String) extends JSONLDable {
   override def partialJsonLD: JObject = {
       ("experimentProtocol" -> protocol) ~
       ("experimentCellType" -> cellType) ~
+      ("experimentSpecies" -> species) ~
+      ("experimentTissue" -> tissue) ~
+      ("experimentAntibody" -> antibody) ~
+      ("experimentTreatment" -> treatment) ~
       ("experimentDescription" -> description)
   }
 }
