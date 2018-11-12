@@ -44,7 +44,7 @@ class StudyElasticLoaderConverter(path:String) {
   // path points to the top folder of a LOLA core db member study
   // we expect a file named index.txt may exist, collection.txt may exist as well
   // if index.txt does not exist, we will attempt and read the regions/ subfolder as it is
-  override def loadData = {
+  def loadData = {
     val sanitizedPath = if (path.endsWith("/")) path else path+"/"
     // get author info
     val study:Study = new LocalCollectionFile(sanitizedPath + "collection.txt").
@@ -54,32 +54,26 @@ class StudyElasticLoaderConverter(path:String) {
     val expMap:Map[String,Experiment] = indexFile.getExperimentFromLOLAIndexFile
     // get list of bed files to process
     indexFile.fileList.
-      map(bedFile => {
-        val absbedFilePath = sanitizedPath + "regions/" + bedFile
-        println(s"Processing ${absbedFilePath}")
-        val bedFileLines:List[Option[(String,Int,Int,Option[String])]] =
-          if (Files.exists(Paths.get(absbedFilePath)))
-            readFile(absbedFilePath).toList
-          else
-            List.empty[Option[(String,Int,Int,Option[String])]]
-        val anns:List[Annotation] = bedFileLines.map(bfl => {
-          bfl match {
-            case Some(x) => {
-              Annotation(Segment(x._1.slice(3, x._1.size), x._2, x._3), {
-                x._4 match {
-                  case Some(y) => y
-                  case None => ""
-                }
-              },expMap(bedFile.getName),study)
-            }
-            case None => Annotation(Segment("0",0,0),"",Experiment("","",""),study)
-          }
-        }) // here we have a list of annotation objects ready to put into elastic
-        // we still need to populate the Study and Experiment objects here
-        // generate a valid json string from experiment
-        // commit to json file on disk
-        //fileWrite(bedFilePath+".jsonld", json)
-        esclient.elasticWrite(anns)
-      })
+      foreach(bedFileName => {
+        val absbedFilePath = sanitizedPath + "regions/" + bedFileName
+        if (Files.exists(Paths.get(absbedFilePath))) {
+          println(s"Processing ${absbedFilePath}")
+          val bedFileLines: List[Array[String]] =
+            if (Files.exists(Paths.get(absbedFilePath))) {
+              val f = new LocalFileReader(absbedFilePath)
+              f.read.toList.map(ln => f.splitDelimitedLine(ln))
+            } else
+              List.empty
+          val anns: List[Annotation] = bedFileLines.map(bfl =>
+            Annotation(Segment(bfl(0).slice(3, bfl(0).size), bfl(1).toInt, bfl(2).toInt), {
+              if (bfl.size > 3) bfl(3) else ""
+            }, expMap(bedFileName), study))
+          esclient.elasticWrite(anns)
+        }
+      }) // here we have a list of annotation objects ready to put into elastic
+      // we still need to populate the Study and Experiment objects here
+      // generate a valid json string from experiment
+      // commit to json file on disk
+      //fileWrite(bedFilePath+".jsonld", json)
   }
 }
