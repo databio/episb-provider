@@ -1,69 +1,108 @@
 package com.github.oddodaoddo.sheffieldapp.datareader
 
 import java.nio.file.{Files, Paths}
+import java.io.IOException
 
 import com.github.oddodaoddo.sheffieldapp.datastructures.{Author, Experiment, Study}
 
 import scala.io.Source
 
-abstract class DataReader[T](path:String) extends java.io.Serializable {
-  // read in lines from a file that could be local or on the net
-  def read:Iterator[T]
+class Line(ln:String) {
+
+  private val delimeters = List(",", "\t", " ")
   // try to split a line in a file, based on a few delimeters
-  def splitDelimitedLine(ln:String):Array[String]
+  // we are converting to a List[String] below because it allows for a clean getOrElse later on in Headerline
+  val splits:Option[List[String]] =
+    delimeters.map(d => if (ln.indexOf(d) != -1) Some(ln.split(d).toList) else None).flatten.headOption
 }
 
-class LocalFileReader(path:String) extends DataReader[String](path) {
-  // suck in all the lines of a text file
-  def read:Iterator[String] = Source.fromFile(path).getLines
-
-  // split a line by trying a few delimeters
-  def splitDelimitedLine(ln:String):Array[String] = {
-    val delimeters = List(",", "\t", " ")
-    val sp:List[Array[String]] = delimeters.map(d => if (ln.indexOf(d) != -1) Some(ln.split(d)) else None).flatten
-    if (sp.isEmpty) Array() else sp.head
-  }
-}
-
-class LocalFileWithHeaderReader(sanitizedPath:String) extends LocalFileReader(sanitizedPath) {
-  // see if a file can be opened
-  val lns:List[String] =
-    if (Files.exists(Paths.get(sanitizedPath)))
-      read.toList
-    else
-      List()
-
-  // get the column mappings for the index.txt file
-  // hash table: (column name -> position in line)
+class HeaderLine(ln:String, kw:List[String]) extends Line(ln) {
+  // get column mappings from a header line
+  // column mappings are a hash table mapping a
+  // (column name -> position in line)
   // lowercase column names only
-  val columnMappings:Map[String,Int] =
-  if (!lns.isEmpty)
-    splitDelimitedLine(lns.head).map(x => x.toLowerCase).zipWithIndex.toMap
-  else
-    Map()
+  // the below operation is safe on an empty list,
+  // if a list is empty, the map will be empty as well, and it will be correctly typed
+
+  // FIXME: Not sure I like the typecast, can we see if we can use the Option as it was indended to be used?
+  private val columnMappings:Map[String,Int] =
+    splits.getOrElse(List().asInstanceOf[List[String]]).map(x => x.toLowerCase).zipWithIndex.toMap
+
+  // convenience methods
+  def apply(k:String) = columnMappings(k)
+  def contains(k:String):Boolean = columnMappings.contains(k)
+  def size:Int = columnMappings.size
+  def keys:Set[String] = columnMappings.keySet
+
+  // see if the header we read from the file matches the header we expected
+  // FIXME: see above FIXME, how would this change to match that?
+  def kwMatch:Boolean = kw.map(k => columnMappings.contains(k)).foldLeft(true)(_ && _)
+}
+
+trait FileReader extends java.io.Serializable {
+
+  val path:String
+  
+  def read:Option[Iterator[String]]
+
+  def fileExists:Boolean
+  def size:Int = if (contents != None) contents.size else 0
+
+  // we only deal in lines and headers, we do not expose contents itself
+  // will be either a list of lines or an empty list
+
+  // read in lines from a file that could be local or on the net (like a URL or on S3, e.g.)
+  protected val contents:Option[List[String]] = read.map(x => x.toList)
+  val lines:List[Line] = if (contents.isDefined && contents.size > 0) 
+    contents.get.map(new Line(_))
+  else List.empty
+
+  // convenience method
+  def isEmpty:Boolean = contents == None
+}
+
+trait DiskFile extends FileReader {
+  def fileExists:Boolean = Files.exists(Paths.get(path))
+  def read:Option[Iterator[String]] = if (fileExists) Some(Source.fromFile(path).getLines) else None
+}
+
+class LocalDiskFile(override val path:String) extends DiskFile
+
+// a file with a header line
+abstract class HeaderedFile(override val path:String, kw:List[String], strictMatch:Boolean) extends FileReader {
+  // will be either a list of lines or an empty list
+  override val lines:List[Line] = if (contents.isDefined && contents.size > 1)
+    contents.get.tail.map(new Line(_)) 
+  else List.empty
+
+  val header:Option[HeaderLine] = if (contents.isDefined && contents.size > 1) {
+    val hl = new HeaderLine(contents.get.head, kw)
+    if ((strictMatch && hl.kwMatch) || (!strictMatch))
+      Some(hl)
+    else
+      None
+  } else
+      None
 }
 
 // representation of an index.txt file from LOLACore, local to the file system
-class LocalIndexFile(sanitizedPath:String) extends LocalFileWithHeaderReader(sanitizedPath) {
+class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean) extends HeaderedFile(path, kw, kwMatch) with DiskFile {
   // get all files listed in index.txt
   // assumes "filename" column
-  val fileList:List[String] = lns.map(ln =>
-    if (columnMappings.contains("filename")) {
-      val lnsplit = splitDelimitedLine(ln)
-      if (lnsplit.size != (columnMappings.values.max+1) || columnMappings("filename") > lnsplit.size)
-        None
-      else
-        Some(lnsplit(columnMappings("filename")))
-    } else None).flatten
+  val fileList:List[String] = lines.
+    filter(ln => (header.isDefined && header.get.contains("filename")) &&
+      ln.splits.isDefined && 
+      (ln.splits.get.size == (header.get.size+1) || header.get("filename") <= ln.splits.get.size)).
+    map(_.splits.get(header.get("filename")))
 
   // create all the Experiment objects from an index file
   // they are indexed by filename (usually a bed file filename)
-  def getExperimentFromLOLAIndexFile:Map[String,Experiment] = {
+  val experiments:Option[Map[String,Experiment]] = {
     // create an Experiment object based on index.txt contents, with variable column structure
-    def populateExperiment(ln:Array[String]):Experiment = {
-      val keywords = List("protocol","treatment","celltype","species","tissue","antibody","description")
-      val kwval:Map[String,String] = keywords.map(kw =>
-        if (columnMappings.contains(kw)) (kw -> ln(columnMappings(kw))) else (kw -> "")).toMap
+    // FIXME: de-couple Experiment creation from hard-coded list of fields
+    def populateExperiment(ln:List[String], h:HeaderLine):Experiment = {
+      val kwval:Map[String,String] = kw.map(k =>
+        if (h.contains(k)) (k -> ln((h(k)))) else (k -> "")).toMap
       Experiment(kwval("protocol"),
         kwval("celltype"),
         kwval("species"),
@@ -73,40 +112,50 @@ class LocalIndexFile(sanitizedPath:String) extends LocalFileWithHeaderReader(san
         kwval("description"))
     }
 
-    lns.tail.map(ln => {
-      val x = splitDelimitedLine(ln)
-      // WARNING: below assumes we at least have a "filename" column in index.txt
-      if (x.isEmpty || (x.size != (columnMappings.values.max + 1) || columnMappings("filename") > x.size))
-        ("" -> Experiment("", "", "","","","",""))
-      else
-        (x(columnMappings("filename")) -> populateExperiment(x))
-    }).toMap
+    if (header != None) {
+      val h = header.get
+      Some(lines.filter(ln => ln.splits.isDefined && (ln.splits.get.size != (h.size+1) || ln.splits.size <= h("filename"))).
+        map(ln => ln.splits.get(h("filename")) -> populateExperiment(ln.splits.get,h)).toMap)
+    } else
+        None
   }
 }
 
 // representation of a collection.txt file from LOLACore, local to the file system
-class LocalCollectionFile(sanitizedPath:String) extends LocalFileWithHeaderReader(sanitizedPath) {
-  // try to get Author info from LOLA collection.txt file
-  def getStudyFromLOLACollectionFile:Study = {
-    val lnsplit = splitDelimitedLine(lns(1)) // split on the 2nd line in collection.txt
-    val keywords = List("collector", "date", "source", "description")
-    val kwval:Map[String,String] = keywords.map(kw =>
-      if (columnMappings.contains(kw)) (kw -> lnsplit(columnMappings(kw))) else (kw -> "")).toMap
+class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean) extends HeaderedFile(path, kw, kwMatch) with DiskFile {
+  // use only the first line of the collection file after the header, ignore the rest
+  val study:Study = if (!lines.isEmpty && lines(0).splits.isDefined && header.isDefined) {
+    val ln = lines(0).splits.get
+    val h = header.get
+    val kwval:Map[String,String] = kw.map(k => 
+      if (h.contains(k)) (k -> ln.apply(h(k))) else (k -> "")).toMap
     if (kwval.isEmpty)
       Study(Author("Default", "Author", "info@episb.org"),"","","")
     else {
       // get Author object done first
       val authorPart: Array[String] = if (kwval.contains("collector")) kwval("collector").split(" ") else Array()
       val author: Author =
-        if (authorPart.size == 2)
-          Author(authorPart(0), authorPart(1), email = "")
-        else
-          Author(authorPart(0), "", "")
+      if (authorPart.size == 2)
+        Author(authorPart(0), authorPart(1), email = "")
+      else
+        Author(authorPart(0), "", "")
       Study(author, kwval("source"), kwval("description"), kwval("date"))
     }
-  }
+  } else
+      Study(Author("Default", "Author", "info@episb.org"),"","","")
 }
 
+// the following class probes a text file to discover its header
+class HeaderProber(path:String) extends HeaderedFile(path, List.empty, false) with DiskFile {
+  def getHeaderKeywords:Set[String] = if (header != None) header.get.keys else Set().empty
+}
+
+// format is to tell us which columns are segments and which are annotations
+//class LocalSegmentationFile(path:String, format:String) extends LocalFile(path)
+
+// this is a class that 
+//class DHSSegmentation(path:String) extends LocalSegmentationFile(path) {
+//}
 /*class SafeS3Reader extends DataReader[String] with java.io.Serializable {
   def read(path:String): Iterator[String] =
     Source.fromInputStream(S3Utility.s3Client.getObject(S3Utility.getS3ReadBucket, path).getObjectContent: InputStream).getLines
