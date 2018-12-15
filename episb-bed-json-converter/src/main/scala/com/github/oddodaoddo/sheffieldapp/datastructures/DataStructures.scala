@@ -28,10 +28,12 @@ case class Segment(chr:String, start:Int, end:Int) extends JSONLDable {
 
 case class Annotation(segment:Segment,
                       value:String,
+                      sptag:String,
                       experiment:Experiment,
                       study:Study) extends JSONLDable {
   override def partialJsonLD: JObject = {
     ("annValue" -> value) ~
+    ("sptag" -> sptag) ~
     ("Segment" -> segment.partialJsonLD) ~
     ("experiment" -> experiment.partialJsonLD) ~
     ("study" -> study.partialJsonLD)
@@ -63,9 +65,10 @@ case class Study(author:Author, manuscript:String, description:String, date:Stri
   }
 }
 
-case class Experiment(protocol:String,cellType:String,species:String,
+case class Experiment(name:String, protocol:String,cellType:String,species:String,
                       tissue:String,antibody:String,treatment:String,description:String) extends JSONLDable {
   override def partialJsonLD: JObject = {
+      ("experimentName" -> name) ~
       ("experimentProtocol" -> protocol) ~
       ("experimentCellType" -> cellType) ~
       ("experimentSpecies" -> species) ~

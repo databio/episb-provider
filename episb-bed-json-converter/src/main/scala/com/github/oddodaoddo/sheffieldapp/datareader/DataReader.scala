@@ -32,7 +32,7 @@ class HeaderLine(ln:String, kw:List[String]) extends Line(ln) {
   def apply(k:String) = columnMappings(k)
   def contains(k:String):Boolean = columnMappings.contains(k)
   def size:Int = columnMappings.size
-  def keys:Set[String] = columnMappings.keySet
+  def keys:List[String] = columnMappings.keys.toList
 
   // see if the header we read from the file matches the header we expected
   // FIXME: see above FIXME, how would this change to match that?
@@ -86,7 +86,8 @@ abstract class HeaderedFile(override val path:String, kw:List[String], strictMat
 }
 
 // representation of an index.txt file from LOLACore, local to the file system
-class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean) extends HeaderedFile(path, kw, kwMatch) with DiskFile {
+class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean) 
+    extends HeaderedFile(path, kw, kwMatch) with DiskFile {
   // get all files listed in index.txt
   // assumes "filename" column
   val fileList:List[String] = lines.
@@ -100,10 +101,11 @@ class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean) extends H
   val experiments:Option[Map[String,Experiment]] = {
     // create an Experiment object based on index.txt contents, with variable column structure
     // FIXME: de-couple Experiment creation from hard-coded list of fields
-    def populateExperiment(ln:List[String], h:HeaderLine):Experiment = {
+    def populateExperiment(ln:List[String], h:HeaderLine,expname:String):Experiment = {
       val kwval:Map[String,String] = kw.map(k =>
         if (h.contains(k)) (k -> ln((h(k)))) else (k -> "")).toMap
-      Experiment(kwval("protocol"),
+      Experiment(expname,
+        kwval("protocol"),
         kwval("celltype"),
         kwval("species"),
         kwval("tissue"),
@@ -115,14 +117,15 @@ class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean) extends H
     if (header != None) {
       val h = header.get
       Some(lines.filter(ln => ln.splits.isDefined && (ln.splits.get.size != (h.size+1) || ln.splits.size <= h("filename"))).
-        map(ln => ln.splits.get(h("filename")) -> populateExperiment(ln.splits.get,h)).toMap)
+        map(ln => ln.splits.get(h("filename")) -> populateExperiment(ln.splits.get,h,ln.splits.get(h("filename")))).toMap)
     } else
         None
   }
 }
 
 // representation of a collection.txt file from LOLACore, local to the file system
-class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean) extends HeaderedFile(path, kw, kwMatch) with DiskFile {
+class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean) 
+    extends HeaderedFile(path, kw, kwMatch) with DiskFile {
   // use only the first line of the collection file after the header, ignore the rest
   val study:Study = if (!lines.isEmpty && lines(0).splits.isDefined && header.isDefined) {
     val ln = lines(0).splits.get
@@ -147,15 +150,11 @@ class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean) exte
 
 // the following class probes a text file to discover its header
 class HeaderProber(path:String) extends HeaderedFile(path, List.empty, false) with DiskFile {
-  def getHeaderKeywords:Set[String] = if (header != None) header.get.keys else Set().empty
+  def getHeaderKeywords:List[String] = if (header != None) header.get.keys else List.empty
 }
 
-// format is to tell us which columns are segments and which are annotations
-//class LocalSegmentationFile(path:String, format:String) extends LocalFile(path)
-
-// this is a class that 
-//class DHSSegmentation(path:String) extends LocalSegmentationFile(path) {
-//}
+//class SegmentationLoader(path:String, kw:List[String], kwMatch:Boolean)
+//  extends 
 /*class SafeS3Reader extends DataReader[String] with java.io.Serializable {
   def read(path:String): Iterator[String] =
     Source.fromInputStream(S3Utility.s3Client.getObject(S3Utility.getS3ReadBucket, path).getObjectContent: InputStream).getLines

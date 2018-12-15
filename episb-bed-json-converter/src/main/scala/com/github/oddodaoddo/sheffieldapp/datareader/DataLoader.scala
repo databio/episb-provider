@@ -8,22 +8,22 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 
-class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
+class ElasticRawDataLoader(pathsToLoad:Array[String]) {
   private val esclient = new ElasticSearchWriter("localhost", 9300)
 
-  pathsToLoad.foreach(path => loadData(path))
+  pathsToLoad.foreach(path => loadLOLACoreExperiment(path))
 
   // get a list of files from a directory
   // FIXME: for now we assume our data is in LOLACore format
   // FIXME: need more thought on reading in non LOLACore formatted data sources!
-  private def getFilesFromDir(dir: String):List[File] = {
+  /*private def getFilesFromDir(dir: String):List[File] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
       d.listFiles.filter(_.isFile).toList
     } else {
       List[File]()
     }
-  }
+  }*/
 
   // either get a list of files from index.txt or get it from regions/
   // by reading the directory
@@ -46,7 +46,7 @@ class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
   // path points to the top folder of a LOLA core db member study
   // we expect a file named index.txt may exist, collection.txt may exist as well
   // if index.txt does not exist, we will attempt and read the regions/ subfolder as it is
-  def loadData(path:String) = {
+  def loadLOLACoreExperiment(path:String) = {
     val sanitizedPath = if (path.endsWith("/")) path else path+"/"
     // get author info
     val studyKw = List("")
@@ -72,12 +72,16 @@ class StudyElasticLoaderConverter(pathsToLoad:Array[String]) {
         val bedFile = new LocalDiskFile(absbedFilePath)
         //println(s"Processing ${absbedFilePath}")
         val anns: List[Annotation] = bedFile.lines.map(line => 
-          line.splits.map(s => 
+          line.splits.map(s => {
             // FIXME: here we are making assumptions about positioning of things in a bed file!
-            Annotation(Segment(s(0), s(1).toInt, s(2).toInt), {
-              if (s.size > 3) s(3) else ""}, indexFile.experiments.get(bedFileName), study))).flatten
+            val e:Experiment = indexFile.experiments.get(bedFileName)
+            Annotation(Segment(s(0).slice(3, s(0).size), s(1).toInt, s(2).toInt), {
+              if (s.size > 3) s(3) else ""}, "s{LOLACore::$e.name}", e, study)})).flatten
         esclient.elasticWrite(anns)})
       println(s"Processed ${indexFile.fileList.size} bed files")
       //println(s"Processed ${lines} annotations.")
   }
+}
+
+class ElasticSegmentationLoader(path:String, probe:Boolean) {
 }
