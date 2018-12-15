@@ -7,6 +7,8 @@ import com.typesafe.config._
 
 import org.json4s.native.JsonMethods._
 
+import com.github.oddodaoddo.sheffieldapp.datastructures.JSONLDable
+
 import com.github.oddodaoddo.sheffieldapp.datastructures.Annotation
 import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.client.transport.TransportClient
@@ -49,12 +51,12 @@ class ElasticSearchWriter(host:String, port:Int) {
             setSource(data, XContentType.JSON).get()
   }
 
-  def elasticWrite(data:List[Annotation]) = {
-    println(s"Check on elastic write: written ${data.size} annotations to database.")
+  // write any JSONLDable class descendent into elastic
+  def elasticWrite(data:List[JSONLDable], index:String, subIndex:String) = {
     val bulkReq = esclient.prepareBulk
-    val zippedData:List[(Annotation,Int)] = data.zipWithIndex
+    val zippedData:List[(JSONLDable,Int)] = data.zipWithIndex
     zippedData.foreach(x => bulkReq.
-      add(esclient.prepareIndex("annotations", "annotation").
+      add(esclient.prepareIndex(index, subIndex).
       setSource(compact(render(x._1.partialJsonLD)),XContentType.JSON)))
    bulkReq.get()
   }

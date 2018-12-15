@@ -153,8 +153,7 @@ class HeaderProber(path:String) extends HeaderedFile(path, List.empty, false) wi
   def getHeaderKeywords:List[String] = if (header != None) header.get.keys else List.empty
 }
 
-//class SegmentationLoader(path:String, kw:List[String], kwMatch:Boolean)
-//  extends 
+
 /*class SafeS3Reader extends DataReader[String] with java.io.Serializable {
   def read(path:String): Iterator[String] =
     Source.fromInputStream(S3Utility.s3Client.getObject(S3Utility.getS3ReadBucket, path).getObjectContent: InputStream).getLines
