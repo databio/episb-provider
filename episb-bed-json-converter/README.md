@@ -24,6 +24,12 @@ For loading non-headered segmentations, run the following command:
 SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ElasticLoadSegmentationNonHeadered --path=<path to bed file> --segname=<desired name of segmentation>"
 ``
 
+or
+
+``
+SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ElasticLoadSegmentationNonHeadered --path=<path to bed file> --segname=<desired name of segmentation> --columns=<comma separated list of numbers (zero indexed)>"
+``
+
 for example:
 
 ``
