@@ -49,7 +49,7 @@ class ElasticRawDataLoader(pathsToLoad:Array[String]) {
   def loadLOLACoreExperiment(path:String) = {
     val sanitizedPath = if (path.endsWith("/")) path else path+"/"
     // get author info
-    val studyKw = List("")
+    val studyKw = List("collector", "data", "source", "description")
     
     val indexKw = List("filename",
       "description",
@@ -62,12 +62,13 @@ class ElasticRawDataLoader(pathsToLoad:Array[String]) {
 
     val study:Study = new LOLACoreCollectionFile(sanitizedPath + "collection.txt", studyKw, true).study
     // get study and experiment info
-    val indexFile = new LOLACoreIndexFile(sanitizedPath + "index.txt", indexKw, true)
+    val indexFile = new LOLACoreIndexFile(sanitizedPath + "index.txt", indexKw, false)
     // get list of bed files to process
     println("======================================")
     println(s"Processing ${path}")
     indexFile.fileList.
       foreach(bedFileName => {
+        println(s"Processing ${bedFileName}")
         val absbedFilePath = sanitizedPath + "regions/" + bedFileName
         val bedFile = new LocalDiskFile(absbedFilePath)
         //println(s"Processing ${absbedFilePath}")
@@ -110,7 +111,7 @@ object SegmentationLoader {
       val chr = ln(0).slice(3, ln(0).size)
       val segStart = ln(1).toInt
       val segEnd = ln(2).toInt
-      val s = new Segment(chr,segStart,segEnd)
+       val s = new Segment(chr,segStart,segEnd)
       anns.map(ann => {
         val aval = ln(ann)
         new Annotation(s, aval, name, emptyExp, emptyStudy)}).toList})).flatten).flatten

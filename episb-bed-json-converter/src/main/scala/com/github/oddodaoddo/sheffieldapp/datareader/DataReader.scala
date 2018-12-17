@@ -53,7 +53,8 @@ trait FileReader extends java.io.Serializable {
 
   // read in lines from a file that could be local or on the net (like a URL or on S3, e.g.)
   protected val contents:Option[List[String]] = read.map(x => x.toList)
-  val lines:List[Line] = if (contents.isDefined && contents.size > 0) 
+
+  val lines:List[Line] = if (contents.isDefined && contents.get.size > 0) 
     contents.get.map(new Line(_))
   else List.empty
 
@@ -71,11 +72,11 @@ class LocalDiskFile(override val path:String) extends DiskFile
 // a file with a header line
 abstract class HeaderedFile(override val path:String, kw:List[String], strictMatch:Boolean) extends FileReader {
   // will be either a list of lines or an empty list
-  override val lines:List[Line] = if (contents.isDefined && contents.size > 1)
+  override val lines:List[Line] = if (contents.isDefined && contents.get.size > 1)
     contents.get.tail.map(new Line(_)) 
   else List.empty
 
-  val header:Option[HeaderLine] = if (contents.isDefined && contents.size > 1) {
+  val header:Option[HeaderLine] = if (contents.isDefined && contents.get.size > 1) {
     val hl = new HeaderLine(contents.get.head, kw)
     if ((strictMatch && hl.kwMatch) || (!strictMatch))
       Some(hl)
@@ -152,7 +153,6 @@ class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean)
 class HeaderProber(path:String) extends HeaderedFile(path, List.empty, false) with DiskFile {
   def getHeaderKeywords:List[String] = if (header != None) header.get.keys else List.empty
 }
-
 
 /*class SafeS3Reader extends DataReader[String] with java.io.Serializable {
   def read(path:String): Iterator[String] =
