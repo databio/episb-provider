@@ -52,13 +52,18 @@ class ElasticSearchWriter(host:String, port:Int) {
   }
 
   // write any JSONLDable class descendent into elastic
-  def elasticWrite(data:List[JSONLDable], index:String, subIndex:String) = {
-    println("Writing data into elastic")
-    val bulkReq = esclient.prepareBulk
-    val zippedData:List[(JSONLDable,Int)] = data.zipWithIndex
-    zippedData.foreach(x => bulkReq.
-      add(esclient.prepareIndex(index, subIndex).
-      setSource(compact(render(x._1.partialJsonLD)),XContentType.JSON)))
-    bulkReq.get()
+  // return how many items were written
+  def elasticWrite(data:List[JSONLDable], index:String, subIndex:String):Int = {
+    if (data.isEmpty) 0
+    else {
+      println("Writing data into elastic")
+      val bulkReq = esclient.prepareBulk
+      val zippedData:List[(JSONLDable,Int)] = data.zipWithIndex
+      zippedData.foreach(x => bulkReq.
+        add(esclient.prepareIndex(index, subIndex).
+          setSource(compact(render(x._1.partialJsonLD)),XContentType.JSON)))
+      bulkReq.get()
+      data.size
+    }
   }
 }
