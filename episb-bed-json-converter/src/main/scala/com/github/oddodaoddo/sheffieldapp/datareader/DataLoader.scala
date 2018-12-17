@@ -126,6 +126,9 @@ object SegmentationLoader {
     val f:HeaderedFile = new HeaderedFile(path, kw, true) with DiskFile
   }
 
+object SegmentationLoaderHeadered {
+}
+
 /*  private val (segmentation,sptag):(Segmentation,String) = loadSegmentation
   private val annotations:List[List[Annotation]] = loadAnnotations
 
