@@ -80,7 +80,7 @@ class ElasticRawDataLoader(pathsToLoad:Array[String]) {
             // the name of the experiment
             val e:Experiment = indexFile.experiments.get(bedFileName)
             Annotation(Segment(s(0).slice(3, s(0).size), s(1).toInt, s(2).toInt), {
-              if (s.size > 3) s(3) else ""}, "s{LOLACore::$e.name}", e, study)})).flatten
+              if (s.size > 3) s(3) else ""}, s"{LOLACore::$e.name}", e, study)})).flatten
         esclient.elasticWrite(anns, "annotations", "annotation")})
       println(s"Processed ${indexFile.fileList.size} bed files")
       //println(s"Processed ${lines} annotations.")
