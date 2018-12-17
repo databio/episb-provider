@@ -9,7 +9,7 @@ import scala.io.Source
 
 class Line(ln:String) {
 
-  private val delimeters = List(",", "\t", " ")
+  private val delimeters = List("\t", " ", ",")
   // try to split a line in a file, based on a few delimeters
   // we are converting to a List[String] below because it allows for a clean getOrElse later on in Headerline
   val splits:Option[List[String]] =

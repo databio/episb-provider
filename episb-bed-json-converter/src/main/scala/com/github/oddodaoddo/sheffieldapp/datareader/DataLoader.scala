@@ -133,7 +133,7 @@ object SegmentationLoader {
   esclient.elasticWrite(List(segmentation), "_segmentations", name)
   // write all the possible annotations (if any) to elastic
   annotations.foreach(esclient.elasticWrite(_, "_annotations", "annotation"))
-
+ 
   // get the segment list from a file and create a segmentation from it
   private def loadSegmentation:(Segmentation,String) = {
     // we are assuming headers exist and 
