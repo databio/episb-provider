@@ -13,8 +13,10 @@ sbt "runMain com.github.oddodaoddo.sheffieldapp.ElasticLoadRawData <regions/ dir
 for example:
 
 ``
-sbt "runMain com.github.oddodaoddo.sheffieldapp.ElasticLoadRawData /mnt/shefflab/LOLAweb/databases/LOLACore/hg38/encode_tfsb
+sbt "runMain com.github.oddodaoddo.sheffieldapp.ElasticLoadRawData /mnt/shefflab/LOLAweb/databases/LOLACore/hg38/encode_tfsb"
 ``
+
+All annotations found will be loaded into a local Elasticsearch index named "annotations".
 
 For loading non-headered segmentations, run the following command:
 
@@ -28,8 +30,4 @@ for example:
 SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ElasticLoadSegmentationNonHeadered --path=/home/ognen/wgEncodeBroadHmmGm12878HMM.bed --segname=wgEncodeBroadHmmGm12878HMM"
 ``
 
-Code can also be compiled via "sbt compile" and the resulting jar can be run via basic java commands (thus bypassing sbt) - I will include instructions on this later.
-
-The program will create matching .jsonld fiules for each bed file found in index.txt listing as per LOLA database. It will also attempt to load the json documents into elasticsearch server on localhost.
-
-Code is VERY beta - needs a lot more polishing, refactoring, cleaning up and error checking.
+All segmentations found will be loaded into a local Elasticsearch index called "segmentations".
