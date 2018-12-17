@@ -21,7 +21,11 @@ object ElasticLoadSegmentationNonHeadered {
 
   def main(args:Array[String]): Unit = {
     val conf = new Conf(args)
-    SegmentationLoader.processFile(conf.segname(),conf.path(),conf.columns().toList:_*)
+    val columns:List[Int] = if (conf.columns.isDefined) 
+      conf.columns()
+    else
+      List.empty
+    SegmentationLoader.processFile(conf.segname(),conf.path(),columns:_*)
 
     //new ElasticSegmentationLoader("",true)
   }
