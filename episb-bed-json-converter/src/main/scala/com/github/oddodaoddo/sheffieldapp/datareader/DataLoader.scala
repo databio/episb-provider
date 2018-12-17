@@ -116,8 +116,8 @@ object SegmentationLoader {
         val aval = ln(ann)
         new Annotation(s, aval, name, emptyExp, emptyStudy)}).toList})).flatten).flatten
     // now that we have the segmentation and the annotations, it is time to write them to elastic
-    esclient.elasticWrite(List(segmentation), "_segmentations", name)
-    esclient.elasticWrite(annotations, "_annotations", "annotation")
+    esclient.elasticWrite(List(segmentation), "segmentations", name)
+    esclient.elasticWrite(annotations, "annotations", "annotation")
   }
 
   // assume headered file with kw listing all the keywords we need
