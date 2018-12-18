@@ -96,7 +96,9 @@ class SegmentationLoader(
     //writer.write(annotations)//, "annotations", "annotation")
 }
 
-class AnnotationLoader(reader:FileReader, writer:JSONWriter, columns:Int*) {
+// assumes we know the segmentation we want to use
+// we can get the whole segmentation back and use the segments for this occasion
+class AnnotationLoader(reader:FileReader, writer:JSONWriter, segName:String, columns:Int*) {
   /* algorithm:
    *   open file
    *   for each line
@@ -113,10 +115,11 @@ class AnnotationLoader(reader:FileReader, writer:JSONWriter, columns:Int*) {
 
     // invoke REST API point here
     // FIXME: no timeout checking, no futures, no error checking
-    val url = s"http://localhost:8080/segmentation/match/exact/${chr}/${segStart}/${segEnd}"
+    val url = s"http://localhost:8080/segmentation/getByName/WithSegments/${segName}"
     val json = Source.fromURL(url).mkString
-    // parse the json here to see if we have an exact match
-    // if we do, it will be a single segment ID
+    // we get back a list of actual segments and their IDs
+    // now we need to turn this list into a searchable data structure
+    // and search it for a particular segment chr/start/end and get resulting segment ID
     // this segment ID is in form <segmentation>::uuid
     // now read annotation value at column x
     // and create an annotation object to commit to elastic (or to a file)
