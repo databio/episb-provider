@@ -10,7 +10,7 @@ import org.scalatra._
 import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse, SearchType}
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.TransportAddress
-import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders, RangeQueryBuilder}
+import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders, RangeQueryBuilder, TermQueryBuilder}
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
@@ -94,6 +94,33 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
       compact(render(responses.map(x => {
         ("segStart" -> x._1) ~ ("segEnd" -> x._2) ~("response" -> x._3)
       })))
+    }
+  }
+
+  get("/segmentation/match/exact/:chr/:start/:end") {
+    val segStart:Int = params("start").toInt
+    val segEnd:Int = params("end").toInt
+    val chr:String = params("chr")
+    
+    if (segStart>segEnd)
+      JsonError(s"segStart(${segStart}) > segEnd(${segEnd})").toString
+    else {
+      try {
+        val startQuery = QueryBuilders.termQuery("Segment.segStart", segStart)
+        val endQuery = QueryBuilders.termQuery("Segment.segEnd", segEnd)
+        val chrQuery = QueryBuilders.termsQuery("Segment.segChr", chr)
+
+        val qb = QueryBuilders.boolQuery
+        qb.must(startQuery).must(endQuery).must(chrQuery)
+
+        // prepare an elastic query
+        val response: SearchResponse = esclient.prepareSearch("segments").
+          setQuery(qb).setSize(1).get
+
+        response.toString
+      } catch {
+        case e:Exception => JsonError(e.getMessage)
+      }
     }
   }
 }
