@@ -115,7 +115,7 @@ class AnnotationLoader(reader:FileReader, writer:JSONWriter, segName:String, col
 
     // invoke REST API point here
     // FIXME: no timeout checking, no futures, no error checking
-    val url = s"http://localhost:8080/segmentation/getByName/WithSegments/${segName}"
+    val url = s"http://localhost:8080/segmentation/get/ByNameWithSegments/${segName}"
     val json = Source.fromURL(url).mkString
     // we get back a list of actual segments and their IDs
     // now we need to turn this list into a searchable data structure

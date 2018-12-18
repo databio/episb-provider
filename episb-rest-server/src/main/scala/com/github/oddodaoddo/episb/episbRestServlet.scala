@@ -123,4 +123,16 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
       }
     }
   }
+
+  get("/segmentation/get/ByNameWithSegments/:segName") {
+    val segName = params("segName")
+    try {
+      val qb = QueryBuilders.termQuery("segmentation.segmentationName", segName)
+      val response = esclient.prepareSearch("segmentations").
+        setQuery(qb).setSize(1).get
+      response.toString
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
+    }
+  }
 }
