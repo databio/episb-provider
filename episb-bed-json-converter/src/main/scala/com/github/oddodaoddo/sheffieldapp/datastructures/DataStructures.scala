@@ -18,8 +18,9 @@ trait JSONLDable extends java.io.Serializable {
   }
 }
 
-case class Segment(chr:String, start:Int, end:Int) extends JSONLDable {
+case class Segment(id:String, chr:String, start:Int, end:Int) extends JSONLDable {
   override def partialJsonLD: JObject = {
+    ("segID" -> id) ~
     ("segChr" -> chr) ~
     ("segStart" -> start) ~
     ("segEnd" -> end)

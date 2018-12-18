@@ -1,8 +1,10 @@
 package com.github.oddodaoddo.sheffieldapp.datareader
 
 import com.github.oddodaoddo.sheffieldapp.datastructures._
+
 import java.io._
 import java.nio.file.{Files, Paths}
+import java.util.UUID.randomUUID
 
 import org.json4s._
 import org.json4s.native.JsonMethods._
@@ -49,7 +51,7 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) {
             // that the segmentation is unknown, so "sptag" property of Annotation is simply
             // the name of the experiment
             val e:Experiment = indexFile.experiments.get(bedFileName)
-            Annotation(Segment(s(0).slice(3, s(0).size), s(1).toInt, s(2).toInt), {
+            Annotation(Segment(s"LOLACore::${randomUUID}",s(0).slice(3, s(0).size), s(1).toInt, s(2).toInt), {
               if (s.size > 3) s(3) else ""}, s"LOLACore::${e.name}", e, study)})).flatten
         writer.write(anns)})
       //println(s"Processed ${indexFile.fileList.size} bed files")
@@ -60,18 +62,22 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) {
 // load up a segmentation
 // load up annotations if they exist and tag them back to the segmentation
 // only works on local files for now
-abstract class SegmentationLoader(override val path:String, name:String, expName:String, writer:JSONWriter, annCols:Int*)
-  extends FileReader {
+class SegmentationLoader(
+  segName:String,
+  expName:String,
+  reader: FileReader,
+  writer:JSONWriter) {
 
   // assumes non-headered file, columns 1, 2 and 3 are segment notation
   // annCols is a list of positions to use as columns for annotations
-  private val f:LocalDiskFile = new LocalDiskFile(path)
+  //private val f:LocalDiskFile = new LocalDiskFile(path)
   // get segmentation
-  private val segmentation = new Segmentation(name,f.lines.map(_.splits.map(ln => {
+  private val segmentation = new Segmentation(segName,reader.lines.map(_.splits.map(ln => {
     val chr = ln(0).slice(3, ln(0).size)
     val segStart = ln(1).toInt
     val segEnd = ln(2).toInt
-    new Segment(chr,segStart,segEnd)})).flatten)
+    // here we assign a random UUID to the segment so it can be uniquely identified
+    new Segment(s"${segName}::${randomUUID.toString}",chr,segStart,segEnd)})).flatten)
     // now get all the annotations
     //val emptyExp = new Experiment("","","","","","","","")
     //val emptyStudy = new Study(new Author("","",""),"","","")
@@ -88,22 +94,14 @@ abstract class SegmentationLoader(override val path:String, name:String, expName
     //writer.write(annotations)//, "annotations", "annotation")
 }
 
-  // assume headered file with kw listing all the keywords we need
-  // assumes first 3 positions are always chr, start, end
-  //def processFile(path:String, kw:List[String]) = {
-  //  val f:HeaderedFile = new HeaderedFile(path, kw, true) with DiskFile
+/*
+class AnnotationLoader
 
-/*  private val (segmentation,sptag):(Segmentation,String) = loadSegmentation
-  private val annotations:List[List[Annotation]] = loadAnnotations
-
-  // write the segmentation into elastic
-  esclient.elasticWrite(List(segmentation), "_segmentations", name)
-  // write all the possible annotations (if any) to elastic
-  annotations.foreach(esclient.elasticWrite(_, "_annotations", "annotation"))
- 
-  // get the segment list from a file and create a segmentation from it
-  private def loadSegmentation:(Segmentation,String) = {
-    // we are assuming headers exist and 
-  }
-
-  private def loadAnnotations:List[List[Annotation]] = {}*/
+ algorithm:
+ * open file
+ * for each line
+ *  get chr/start/end
+ *  segmentationProvider->match(chr/start/end)?
+ *    yes? create annotations linking back to segmentation_provider::segmentID
+ *    no? ???
+ */
