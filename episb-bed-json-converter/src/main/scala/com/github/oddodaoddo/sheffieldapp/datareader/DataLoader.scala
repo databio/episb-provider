@@ -6,6 +6,8 @@ import java.io._
 import java.nio.file.{Files, Paths}
 import java.util.UUID.randomUUID
 
+import scala.io.Source
+
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
@@ -94,14 +96,29 @@ class SegmentationLoader(
     //writer.write(annotations)//, "annotations", "annotation")
 }
 
-/*
-class AnnotationLoader
+class AnnotationLoader(reader:FileReader, writer:JSONWriter, columns:Int*) {
+  /* algorithm:
+   *   open file
+   *   for each line
+   *     get chr/start/end
+   *     elastic_api_server->match(chr/start/end)?
+   *       yes? create annotations linking back to segmentation_provider::segmentID
+   *       no? ???
+   */
 
- algorithm:
- * open file
- * for each line
- *  get chr/start/end
- *  segmentationProvider->match(chr/start/end)?
- *    yes? create annotations linking back to segmentation_provider::segmentID
- *    no? ???
- */
+  reader.lines.map(_.splits.map(ln => {
+    val chr = ln(0).slice(3, ln(0).size)
+    val segStart = ln(1).toInt
+    val segEnd = ln(2).toInt
+
+    // invoke REST API point here
+    // FIXME: no timeout checking, no futures, no error checking
+    val url = s"http://localhost:8080/segmentation/match/exact/${chr}/${segStart}/${segEnd}"
+    val json = Source.fromURL(url).mkString
+    // parse the json here to see if we have an exact match
+    // if we do, it will be a single segment ID
+    // this segment ID is in form <segmentation>::uuid
+    // now read annotation value at column x
+    // and create an annotation object to commit to elastic (or to a file)
+  }))
+}
