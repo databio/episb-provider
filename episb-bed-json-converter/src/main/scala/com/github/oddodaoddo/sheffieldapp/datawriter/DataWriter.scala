@@ -9,7 +9,6 @@ import org.json4s.native.JsonMethods._
 
 import com.github.oddodaoddo.sheffieldapp.datastructures.JSONLDable
 
-import com.github.oddodaoddo.sheffieldapp.datastructures.Annotation
 import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.TransportAddress
@@ -17,7 +16,55 @@ import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
 
-class LocalFileWriter(path:String) {
+trait ElasticConnector {
+  // read config file
+  private val conf = ConfigFactory.load()
+  private val settings:Settings = Settings.builder().
+    put("cluster.name", conf.getString("episb-bed-json-converter.elastic-cluster-name")).build()
+  val esclient = new PreBuiltTransportClient(settings).
+    addTransportAddress(new TransportAddress(InetAddress.
+      getByName(conf.getString("episb-bed-json-converter.elastic-host")),
+      conf.getInt("episb-bed-json-converter.elastic-port")))
+}
+
+trait JSONWriter {
+  def write(data:String):Either[String,Boolean]
+  def write(data:List[JSONLDable]):Either[String,Boolean]
+}
+
+class ElasticSearchWriter(index:String, subIndex:String) extends JSONWriter with ElasticConnector {
+  def write(data:String):Either[String,Boolean] = {
+    try {
+      val esresponse:IndexResponse = esclient.prepareIndex(index, subIndex).
+            setSource(data, XContentType.JSON).get()
+      Right(true)
+    } catch {
+      case e:Exception => Left(e.getMessage)
+    }
+  }
+
+  // write any JSONLDable class descendent into elastic
+  // return how many items were written
+  def write(data:List[JSONLDable]):Either[String,Boolean] = {
+    if (data.isEmpty) Right(true)
+    else {
+      try {
+        val bulkReq = esclient.prepareBulk
+        val zippedData:List[(JSONLDable,Int)] = data.zipWithIndex
+        zippedData.foreach(x => bulkReq.
+          add(esclient.prepareIndex(index, subIndex).
+            setSource(compact(render(x._1.partialJsonLD)),XContentType.JSON)))
+        bulkReq.get()
+        Right(true)
+      } catch {
+        case e:Exception => Left(e.getMessage)
+      }
+    }
+  }
+}
+
+// creates new file on every class instantiation
+class LocalFileWriter(path:String) extends JSONWriter {
   def write(data:String): Either[String, Boolean] = {
     try {
       val f: FileWriter = new FileWriter(path)
@@ -26,44 +73,13 @@ class LocalFileWriter(path:String) {
       Right(true)
     } catch {
         case ioe: IOException => Left(ioe.getMessage)
-      }
-  }
-}
-
-object ElasticConnector {
-  def getESClient:TransportClient = {
-    // read config file
-    val conf = ConfigFactory.load()
-    val settings:Settings = Settings.builder().
-      put("cluster.name", conf.getString("episb-bed-json-converter.elastic-cluster-name")).build()
-    new PreBuiltTransportClient(settings).
-      addTransportAddress(new TransportAddress(InetAddress.
-        getByName(conf.getString("episb-bed-json-converter.elastic-host")),
-          conf.getInt("episb-bed-json-converter.elastic-port")))
-  }
-}
-class ElasticSearchWriter(host:String, port:Int) {
-  // establish elasticsearch connection
-  private val esclient = ElasticConnector.getESClient
-
-  def elasticWrite(data:String) = {
-    val esresponse:IndexResponse = esclient.prepareIndex("annotations","annotation").
-            setSource(data, XContentType.JSON).get()
+    }
   }
 
-  // write any JSONLDable class descendent into elastic
-  // return how many items were written
-  def elasticWrite(data:List[JSONLDable], index:String, subIndex:String):Int = {
-    if (data.isEmpty) 0
+  def write(data:List[JSONLDable]):Either[String,Boolean] = {
+    if (data.isEmpty) Right(true)
     else {
-      println("Writing data into elastic")
-      val bulkReq = esclient.prepareBulk
-      val zippedData:List[(JSONLDable,Int)] = data.zipWithIndex
-      zippedData.foreach(x => bulkReq.
-        add(esclient.prepareIndex(index, subIndex).
-          setSource(compact(render(x._1.partialJsonLD)),XContentType.JSON)))
-      bulkReq.get()
-      data.size
+      write(data.map(_.toJsonLD).mkString("\n"))
     }
   }
 }
