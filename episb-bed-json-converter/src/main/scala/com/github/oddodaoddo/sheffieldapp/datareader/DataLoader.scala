@@ -118,6 +118,8 @@ class AnnotationLoader(reader:FileReader, writer:JSONWriter, segName:String, col
     val url = s"http://localhost:8080/segmentation/get/ByNameWithSegments/${segName}"
     val json = Source.fromURL(url).mkString
     // we get back a list of actual segments and their IDs
+    val j = parse(json)
+
     // now we need to turn this list into a searchable data structure
     // and search it for a particular segment chr/start/end and get resulting segment ID
     // this segment ID is in form <segmentation>::uuid
