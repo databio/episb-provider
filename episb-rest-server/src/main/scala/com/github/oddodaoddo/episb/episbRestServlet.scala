@@ -128,7 +128,7 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
     val segName = params("segName")
     try {
       val qb = QueryBuilders.termQuery("segmentationName", segName)
-      val response = esclient.prepareSearch("segmentation").
+      val response = esclient.prepareSearch("segmentations").
         setQuery(qb).setSize(1).get
       response.toString
     } catch {

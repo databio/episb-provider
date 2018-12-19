@@ -37,7 +37,7 @@ object ProcessSegmentationNonHeadered {
     val conf = new Conf(args)
     val writer = conf.writer()
     val ww:JSONWriter = if (writer == "elastic")
-      new ElasticSearchWriter("segmentation", conf.segname())
+      new ElasticSearchWriter("segmentations", conf.segname())
     else
       new LocalFileWriter(writer)
 
@@ -46,5 +46,33 @@ object ProcessSegmentationNonHeadered {
       conf.expname(),
       new LocalDiskFile(conf.path()),
       ww)
+  }
+}
+
+object ProcessAnnotationNonHeadered {
+  class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
+    //val probe = opt[Boolean]()
+    val segname = opt[String](required=true)
+    val expname = opt[String](required=true)
+    val path = opt[String](required=true)
+    val writer = opt[String](required=true)
+    val columns = opt[List[Int]](required=true)
+    verify()
+  }
+
+  def main(args:Array[String]): Unit = {
+    val conf = new Conf(args)
+    val writer = conf.writer()
+    val ww:JSONWriter = if (writer == "elastic")
+      new ElasticSearchWriter("annotations", "annotation")
+    else
+      new LocalFileWriter(writer)
+
+    new AnnotationLoader(
+      conf.segname(),
+      conf.expname(),
+      new LocalDiskFile(conf.path()),
+      ww,
+      conf.columns().head)
   }
 }

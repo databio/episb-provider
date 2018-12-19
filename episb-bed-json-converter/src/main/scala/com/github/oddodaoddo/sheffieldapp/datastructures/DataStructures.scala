@@ -18,33 +18,31 @@ trait JSONLDable extends java.io.Serializable {
   }
 }
 
-case class Segment(id:String, chr:String, start:Int, end:Int) extends JSONLDable {
+case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extends JSONLDable {
   override def partialJsonLD: JObject = {
-    ("segID" -> id) ~
-    ("segChr" -> chr) ~
-    ("segStart" -> start) ~
-    ("segEnd" -> end)
+    ("segID" -> segID) ~
+    ("segChr" -> segChr) ~
+    ("segStart" -> segStart) ~
+    ("segEnd" -> segEnd)
   }
 }
 
-case class Annotation(segment:Segment,
-                      value:String,
-                      sptag:String,
+case class Annotation(segmentID:String,
+                      annValue:String,
                       experiment:Experiment,
                       study:Study) extends JSONLDable {
   override def partialJsonLD: JObject = {
-    ("annValue" -> value) ~
-    ("sptag" -> sptag) ~
-    ("Segment" -> segment.partialJsonLD) ~
+    ("segmentID" -> segmentID) ~
+    ("annValue" -> annValue) ~
     ("experiment" -> experiment.partialJsonLD) ~
     ("study" -> study.partialJsonLD)
   }
 }
 
-case class Segmentation(name:String, segments:List[Segment]) extends JSONLDable {
+case class Segmentation(segmentationName:String, segmentList:List[Segment]) extends JSONLDable {
   override def partialJsonLD: JObject = {
-    ("segmentationName" -> name) ~
-    ("segmentList" -> segments.map(s => s.partialJsonLD))
+    ("segmentationName" -> segmentationName) ~
+    ("segmentList" -> segmentList.map(s => s.partialJsonLD))
   }
 }
 

@@ -53,8 +53,8 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) {
             // that the segmentation is unknown, so "sptag" property of Annotation is simply
             // the name of the experiment
             val e:Experiment = indexFile.experiments.get(bedFileName)
-            Annotation(Segment(s"LOLACore::${randomUUID}",s(0).slice(3, s(0).size), s(1).toInt, s(2).toInt), {
-              if (s.size > 3) s(3) else ""}, s"LOLACore::${e.name}", e, study)})).flatten
+            Annotation("LOLACore::${randomUUID}", {
+              if (s.size > 3) s(3) else ""}, e, study)})).flatten
         writer.write(anns)})
       //println(s"Processed ${indexFile.fileList.size} bed files")
       //println(s"Processed ${lines} annotations.")
@@ -98,7 +98,7 @@ class SegmentationLoader(
 
 // assumes we know the segmentation we want to use
 // we can get the whole segmentation back and use the segments for this occasion
-class AnnotationLoader(reader:FileReader, writer:JSONWriter, segName:String, columns:Int*) {
+class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer:JSONWriter, col:Int) {
   /* algorithm:
    *   open file
    *   for each line
@@ -107,23 +107,70 @@ class AnnotationLoader(reader:FileReader, writer:JSONWriter, segName:String, col
    *       yes? create annotations linking back to segmentation_provider::segmentID
    *       no? ???
    */
+  implicit val formats = DefaultFormats
 
-  reader.lines.map(_.splits.map(ln => {
-    val chr = ln(0).slice(3, ln(0).size)
-    val segStart = ln(1).toInt
-    val segEnd = ln(2).toInt
+  // invoke REST API point here
+  // FIXME: no timeout checking, no futures, no error checking
+  val url = s"http://localhost:8080/segmentation/get/ByNameWithSegments/${segName}"
+  val json = Source.fromURL(url).mkString
 
-    // invoke REST API point here
-    // FIXME: no timeout checking, no futures, no error checking
-    val url = s"http://localhost:8080/segmentation/get/ByNameWithSegments/${segName}"
-    val json = Source.fromURL(url).mkString
-    // we get back a list of actual segments and their IDs
+  // we get back a segmentation in json or JsonError object
+  // FIXME: Make sure we react accordingly if it is JsonError indeed
+  val segmentation:Either[String,Segmentation] = {
     val j = parse(json)
+    try {
+      Right((j \\ "_source").extract[Segmentation])
+    } catch {
+      case e:Exception => Left(e.getMessage)
+    }
+  }
 
-    // now we need to turn this list into a searchable data structure
-    // and search it for a particular segment chr/start/end and get resulting segment ID
-    // this segment ID is in form <segmentation>::uuid
-    // now read annotation value at column x
-    // and create an annotation object to commit to elastic (or to a file)
-  }))
+  segmentation match {
+    case Right(s) => {
+      // we are in business
+      // we have successfully converted json into a Segmentation class
+      // instance of which is "s"
+      // following function traverses the list of segments for a match
+      // FIXME: figure out a faster way to search!!
+      // FIXME: probably need to restructure the list to avoid traversals
+      def segmentLookup(seg:Segment):Option[Segment] = {
+        def matchSegment(s1:Segment, s2:Segment):Boolean =
+          (s1.segChr==s2.segChr && s1.segStart==s2.segStart && s1.segEnd==s2.segEnd)
+        s.segmentList.find(matchSegment(seg,_))
+      }
+
+      val anns:List[Annotation] = reader.lines.map(_.splits.map(ln => {
+        val chr = ln(0).slice(3, ln(0).size)
+        val segStart = ln(1).toInt
+        val segEnd = ln(2).toInt
+        val annVal = if (ln.size >= col) ln(col) else -1
+
+        val emptyExp:Experiment = new Experiment(expName, "", "", "", "", "", "", "")
+        val emptyStudy:Study = new Study(new Author("","",""),"","","")
+
+        val sp:Option[Segment] = segmentLookup(new Segment("",chr,segStart,segEnd))
+        if (sp.isDefined)
+          // found a segment matching an annotation   
+          new Annotation(sp.get.segID,annVal.toString,emptyExp,emptyStudy)
+        else
+          // FIXME: decide what to do if segment cannot be found
+          new Annotation("unknown segment ID","",emptyExp,emptyStudy)
+        // now we need to turn this list into a searchable data structure
+        // and search it for a particular segment chr/start/end and get resulting segment ID
+        // this segment ID is in form <segmentation>::uuid
+        // now read annotation value at column x
+        // and create an annotation object to commit to elastic (or to a file)
+      })).flatten
+      val writerRes = writer.write(anns)
+      writerRes match {
+        case Left(msg) => println(msg)
+        case Right(bool) => println("write successful")
+      }
+    }
+    case Left(msg) =>
+      println(s"Could not retrieve segmentation from database. Error: ${msg}")
+  }
+
+
+  
 }
