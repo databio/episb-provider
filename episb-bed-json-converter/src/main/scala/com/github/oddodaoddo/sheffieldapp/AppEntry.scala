@@ -37,7 +37,7 @@ object ProcessSegmentationNonHeadered {
     val conf = new Conf(args)
     val writer = conf.writer()
     val ww:JSONWriter = if (writer == "elastic")
-      new ElasticSearchWriter("segmentations", conf.segname())
+      new ElasticSearchWriter("segmentations", "segmentation")
     else
       new LocalFileWriter(writer)
 

@@ -92,8 +92,11 @@ class SegmentationLoader(
         val aval = ln(ann)
         new Annotation(s, aval, name, emptyExp, emptyStudy)}).toList})).flatten).flatten*/
     // now that we have the segmentation and the annotations, it is time to write them to elastic
-  writer.write(List(segmentation))//, "segmentations", name)
-    //writer.write(annotations)//, "annotations", "annotation")
+  val writerRes = writer.write(List(segmentation))
+  writerRes match {
+    case Left(msg) => println(msg)
+    case Right(bool) => println("write successful")
+  }
 }
 
 // assumes we know the segmentation we want to use
