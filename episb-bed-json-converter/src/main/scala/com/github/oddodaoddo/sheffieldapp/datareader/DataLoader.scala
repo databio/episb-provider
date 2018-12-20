@@ -114,7 +114,7 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
 
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"http://localhost:8080/segmentation/get/ByNameWithSegments/${segName}"
+  val url = s"http://localhost:8080/episb-rest-server/segmentation/get/ByNameWithSegments/${segName}"
   val json = Source.fromURL(url).mkString
 
   // we get back a segmentation in json or JsonError object
