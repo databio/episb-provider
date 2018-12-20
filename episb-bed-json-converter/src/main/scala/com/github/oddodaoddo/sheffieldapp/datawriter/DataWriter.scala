@@ -46,7 +46,7 @@ class ElasticSearchWriter(index:String, subIndex:String) extends JSONWriter with
   // write any JSONLDable class descendent into elastic
   // return how many items were written
   def write(data:List[JSONLDable]):Either[String,Boolean] = {
-    if (data.isEmpty) Right(true)
+    if (data.isEmpty) Left("Empty list, skipped commital")
     else {
       try {
         val bulkReq = esclient.prepareBulk
@@ -77,7 +77,7 @@ class LocalFileWriter(path:String) extends JSONWriter {
   }
 
   def write(data:List[JSONLDable]):Either[String,Boolean] = {
-    if (data.isEmpty) Right(true)
+    if (data.isEmpty) Left("Empty list, skipped commital")
     else {
       write(data.map(_.toJsonLD).mkString("\n"))
     }
