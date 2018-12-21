@@ -30,6 +30,7 @@ object ProcessSegmentationNonHeadered {
     val expname = opt[String](required=true)
     val path = opt[String](required=true)
     val writer = opt[String](required=true)
+    val skipheader = opt[Boolean]()
     verify()
   }
 
@@ -45,7 +46,8 @@ object ProcessSegmentationNonHeadered {
       conf.segname(),
       conf.expname(),
       new LocalDiskFile(conf.path()),
-      ww)
+      ww,
+      if (conf.skipheader.toOption.isDefined) conf.skipheader() else false)
   }
 }
 

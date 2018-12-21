@@ -68,13 +68,15 @@ class SegmentationLoader(
   segName:String,
   expName:String,
   reader: FileReader,
-  writer:JSONWriter) {
+  writer:JSONWriter,
+  skipheader:Boolean) {
 
   // assumes non-headered file, columns 1, 2 and 3 are segment notation
   // annCols is a list of positions to use as columns for annotations
   //private val f:LocalDiskFile = new LocalDiskFile(path)
   // get segmentation
-  private val segmentation = new Segmentation(segName,reader.lines.map(_.splits.map(ln => {
+  val lns = if (skipheader) reader.lines.tail else reader.lines
+  private val segmentation = new Segmentation(segName,lns.map(_.splits.map(ln => {
     val chr = ln(0).slice(3, ln(0).size)
     val segStart = ln(1).toInt
     val segEnd = ln(2).toInt
@@ -135,13 +137,7 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
       // instance of which is "s"
       // following function traverses the list of segments for a match
       // FIXME: figure out a faster way to search!!
-      // FIXME: probably need to restructure the list to avoid traversals
-      def segmentLookup(seg:Segment):Option[Segment] = {
-        def matchSegment(s1:Segment, s2:Segment):Boolean =
-          (s1.segChr==s2.segChr && s1.segStart==s2.segStart && s1.segEnd==s2.segEnd)
-        s.segmentList.find(matchSegment(seg,_))
-      }
-
+      
       val anns:List[Annotation] = reader.lines.map(_.splits.map(ln => {
         val chr = ln(0).slice(3, ln(0).size)
         val segStart = ln(1).toInt
@@ -151,10 +147,12 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
         val emptyExp:Experiment = new Experiment(expName, "", "", "", "", "", "", "")
         val emptyStudy:Study = new Study(new Author("","",""),"","","")
 
-        val sp:Option[Segment] = segmentLookup(new Segment("",chr,segStart,segEnd))
+        def segmentLookup(s:Segment):Option[String] = Some(" ")
+
+        val sp:Option[String] = segmentLookup(new Segment("",chr,segStart,segEnd))
         if (sp.isDefined)
           // found a segment matching an annotation   
-          new Annotation(sp.get.segID,annVal.toString,emptyExp,emptyStudy)
+          new Annotation(sp.get,annVal.toString,emptyExp,emptyStudy)
         else
           // FIXME: decide what to do if segment cannot be found
           new Annotation("unknown segment ID","",emptyExp,emptyStudy)
