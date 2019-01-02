@@ -2,6 +2,7 @@ package com.github.oddodaoddo.sheffieldapp.datareader
 
 import java.nio.file.{Files, Paths}
 import java.io.IOException
+import com.typesafe.scalalogging.LazyLogging
 
 import com.github.oddodaoddo.sheffieldapp.datastructures.{Author, Experiment, Study}
 
@@ -9,7 +10,7 @@ import scala.io.Source
 
 class Line(ln:String) {
 
-  private val delimeters = List("\t", " ", ",")
+  private val delimeters = List("\t", ",", " ")
   // try to split a line in a file, based on a few delimeters
   // we are converting to a List[String] below because it allows for a clean getOrElse later on in Headerline
   val splits:Option[List[String]] =
@@ -147,11 +148,6 @@ class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean)
     }
   } else
       Study(Author("Default", "Author", "info@episb.org"),"","","")
-}
-
-// the following class probes a text file to discover its header
-class HeaderProber(path:String) extends HeaderedFile(path, List.empty, false) with DiskFile {
-  def getHeaderKeywords:List[String] = if (header != None) header.get.keys else List.empty
 }
 
 /*class SafeS3Reader extends DataReader[String] with java.io.Serializable {

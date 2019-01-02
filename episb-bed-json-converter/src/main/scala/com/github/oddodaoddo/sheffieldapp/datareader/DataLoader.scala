@@ -147,8 +147,6 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
         val emptyExp:Experiment = new Experiment(expName, "", "", "", "", "", "", "")
         val emptyStudy:Study = new Study(new Author("","",""),"","","")
 
-        def segmentLookup(s:Segment):Option[String] = Some(" ")
-
         val sp:Option[String] = segmentLookup(new Segment("",chr,segStart,segEnd))
         if (sp.isDefined)
           // found a segment matching an annotation   
