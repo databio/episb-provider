@@ -9,7 +9,7 @@ import com.github.oddodaoddo.sheffieldapp.datastructures._
 object SegmentMatcher {
   // this method traverses a SORTED list and quits doing so after 
   // the first false predicate is found
-  def filterUntilFirstFailure(f:Segment => Boolean):List[Segment] = {
+//  def filterUntilFirstFailure(f:Segment => Boolean):List[Segment] = {}
     
-  def findSegmentExact(s:List[Segment], seg:Segment):Segment
+//  def findSegmentExact(s:List[Segment], seg:Segment):Segment = {}
 }

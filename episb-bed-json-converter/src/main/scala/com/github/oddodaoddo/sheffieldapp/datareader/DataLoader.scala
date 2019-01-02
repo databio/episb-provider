@@ -1,6 +1,7 @@
 package com.github.oddodaoddo.sheffieldapp.datareader
 
 import com.github.oddodaoddo.sheffieldapp.datastructures._
+import com.github.oddodaoddo.sheffieldapp.util._
 
 import java.io._
 import java.nio.file.{Files, Paths}
@@ -12,7 +13,9 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 
-class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) {
+class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends Logging {
+
+  logger.info("(LOLACoreConverter): pathsToLoad=${pathsToLoad}")
 
   pathsToLoad.foreach(path => loadLOLACoreExperiment(path))
 
@@ -42,8 +45,9 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) {
     //println(s"Processing ${path}")
     indexFile.fileList.
       foreach(bedFileName => {
-        println(s"Processing ${bedFileName}")
+        logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processing ${bedFileName}")
         val absbedFilePath = sanitizedPath + "regions/" + bedFileName
+        logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): absolute bed filename = ${absbedFilePath}")
         val bedFile = new LocalDiskFile(absbedFilePath)
         //println(s"Processing ${absbedFilePath}")
         val anns: List[Annotation] = bedFile.lines.map(line => 
@@ -55,9 +59,10 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) {
             val e:Experiment = indexFile.experiments.get(bedFileName)
             Annotation("LOLACore::${randomUUID}", {
               if (s.size > 3) s(3) else ""}, e, study)})).flatten
-        writer.write(anns)})
-      //println(s"Processed ${indexFile.fileList.size} bed files")
-      //println(s"Processed ${lines} annotations.")
+        writer.write(anns) // write to wherever
+        logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processed ${anns.size} annotations.")
+      })
+      logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processed ${indexFile.fileList.size} bed files")
   }
 }
 
@@ -69,18 +74,20 @@ class SegmentationLoader(
   expName:String,
   reader: FileReader,
   writer:JSONWriter,
-  skipheader:Boolean) {
+  skipheader:Boolean) extends Logging {
 
   // assumes non-headered file, columns 1, 2 and 3 are segment notation
   // annCols is a list of positions to use as columns for annotations
   //private val f:LocalDiskFile = new LocalDiskFile(path)
   // get segmentation
+  logger.info(s"(SegmentationLoader::params): segName=s{segName}, expName=s{expName}, skipheader=s{skipheader}")
   val lns = if (skipheader) reader.lines.tail else reader.lines
   private val segmentation = new Segmentation(segName,lns.map(_.splits.map(ln => {
     val chr = ln(0).slice(3, ln(0).size)
     val segStart = ln(1).toInt
     val segEnd = ln(2).toInt
     // here we assign a random UUID to the segment so it can be uniquely identified
+    logger.info(s"(SegmentationLoader): creating Segment-> chr=${chr}, start=${segStart}, end=${segEnd}")
     new Segment(s"${segName}::${randomUUID.toString}",chr,segStart,segEnd)})).flatten)
     // now get all the annotations
     //val emptyExp = new Experiment("","","","","","","","")
@@ -96,8 +103,8 @@ class SegmentationLoader(
     // now that we have the segmentation and the annotations, it is time to write them to elastic
   val writerRes = writer.write(List(segmentation))
   writerRes match {
-    case Left(msg) => println(msg)
-    case Right(bool) => println("write successful")
+    case Left(msg) => logger.info(s"(SegmentationLoader::write) unsuccessful. msg=${msg}")
+    case Right(bool) => logger.info(s"(SegmentationLoader::write) write successful")
   }
 }
 

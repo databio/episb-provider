@@ -2,22 +2,27 @@ package com.github.oddodaoddo.sheffieldapp.datareader
 
 import java.nio.file.{Files, Paths}
 import java.io.IOException
-import com.typesafe.scalalogging.LazyLogging
+
+import ch.qos.logback.classic.{Logger}
 
 import com.github.oddodaoddo.sheffieldapp.datastructures.{Author, Experiment, Study}
+import com.github.oddodaoddo.sheffieldapp.util.Logging
 
 import scala.io.Source
 
-class Line(ln:String) {
+class Line(ln:String) extends Logging {
 
   private val delimeters = List("\t", ",", " ")
   // try to split a line in a file, based on a few delimeters
   // we are converting to a List[String] below because it allows for a clean getOrElse later on in Headerline
   val splits:Option[List[String]] =
     delimeters.map(d => if (ln.indexOf(d) != -1) Some(ln.split(d).toList) else None).flatten.headOption
+
+  logger.info(s"ln=${ln}, Line.splits=${splits}")
+
 }
 
-class HeaderLine(ln:String, kw:List[String]) extends Line(ln) {
+class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with Logging {
   // get column mappings from a header line
   // column mappings are a hash table mapping a
   // (column name -> position in line)
@@ -28,6 +33,9 @@ class HeaderLine(ln:String, kw:List[String]) extends Line(ln) {
   // FIXME: Not sure I like the typecast, can we see if we can use the Option as it was indended to be used?
   private val columnMappings:Map[String,Int] =
     splits.getOrElse(List().asInstanceOf[List[String]]).map(x => x.toLowerCase).zipWithIndex.toMap
+
+  // log things
+  logger.info(s"(class HeaderLine): columnMappings=${columnMappings}")
 
   // convenience methods
   def apply(k:String) = columnMappings(k)
@@ -40,7 +48,7 @@ class HeaderLine(ln:String, kw:List[String]) extends Line(ln) {
   def kwMatch:Boolean = kw.map(k => columnMappings.contains(k)).foldLeft(true)(_ && _)
 }
 
-trait FileReader extends java.io.Serializable {
+trait FileReader extends java.io.Serializable with Logging {
 
   val path:String
   
@@ -61,6 +69,9 @@ trait FileReader extends java.io.Serializable {
 
   // convenience method
   def isEmpty:Boolean = contents == None
+
+  // log things
+  logger.info(s"(trait FileReader): path=${path}, size=${size})")
 }
 
 trait DiskFile extends FileReader {
@@ -85,6 +96,8 @@ abstract class HeaderedFile(override val path:String, kw:List[String], strictMat
       None
   } else
       None
+
+  logger.info(s"(class HeaderedFile): header=${header}")
 }
 
 // representation of an index.txt file from LOLACore, local to the file system
@@ -97,6 +110,8 @@ class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean)
       ln.splits.isDefined && 
       (ln.splits.get.size == (header.get.size+1) || header.get("filename") <= ln.splits.get.size)).
     map(_.splits.get(header.get("filename")))
+
+  logger.info("(class LOLACoreIndexFile): fileList=${fileList}")
 
   // create all the Experiment objects from an index file
   // they are indexed by filename (usually a bed file filename)

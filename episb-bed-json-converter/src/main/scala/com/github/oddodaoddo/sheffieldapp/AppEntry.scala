@@ -2,9 +2,11 @@ package com.github.oddodaoddo.sheffieldapp
 
 import com.github.oddodaoddo.sheffieldapp.datareader._
 import com.github.oddodaoddo.sheffieldapp.datastructures._
+
 import org.rogach.scallop._
 
 object ProcessRawLOLAData {
+  
   class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
     //val probe = opt[Boolean]()
     val writer = opt[String](required=true)
