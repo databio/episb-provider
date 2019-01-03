@@ -5,7 +5,9 @@ import com.github.oddodaoddo.sheffieldapp.datastructures._
 
 import org.rogach.scallop._
 
-object ProcessRawLOLAData {
+import com.typesafe.scalalogging.LazyLogging
+
+object ProcessRawLOLAData extends LazyLogging {
   
   class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
     //val probe = opt[Boolean]()
@@ -25,7 +27,7 @@ object ProcessRawLOLAData {
   }
 }
 
-object ProcessSegmentationNonHeadered {
+object ProcessSegmentationNonHeadered extends LazyLogging {
   class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
     //val probe = opt[Boolean]()
     val segname = opt[String](required=true)
@@ -39,21 +41,22 @@ object ProcessSegmentationNonHeadered {
   def main(args:Array[String]): Unit = {
     val conf = new Conf(args)
     val writer = conf.writer()
-    val ww:JSONWriter = if (writer == "elastic")
-      new ElasticSearchWriter("segmentations", "segmentation")
-    else
-      new LocalFileWriter(writer)
+    val (ww, wwc):(JSONWriter,JSONWriter) = if (writer == "elastic") {
+      (new ElasticSearchWriter("segmentations", "segmentation"),
+       new ElasticSearchWriter("compressed_segmentations", "segmentation"))
+    } else
+      (new LocalFileWriter(writer), new LocalFileWriter(writer))
 
     new SegmentationLoader(
       conf.segname(),
       conf.expname(),
       new LocalDiskFile(conf.path()),
-      ww,
+      ww, wwc,
       if (conf.skipheader.toOption.isDefined) conf.skipheader() else false)
   }
 }
 
-object ProcessAnnotationNonHeadered {
+object ProcessAnnotationNonHeadered extends LazyLogging {
   class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
     //val probe = opt[Boolean]()
     val segname = opt[String](required=true)

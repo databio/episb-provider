@@ -25,6 +25,8 @@ case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extend
     ("segStart" -> segStart) ~
     ("segEnd" -> segEnd)
   }
+
+  override def toString:String = s"${segID}|${segChr}|${segStart}|${segEnd}"
 }
 
 case class Annotation(segmentID:String,
@@ -43,6 +45,13 @@ case class Segmentation(segmentationName:String, segmentList:List[Segment]) exte
   override def partialJsonLD: JObject = {
     ("segmentationName" -> segmentationName) ~
     ("segmentList" -> segmentList.map(s => s.partialJsonLD))
+  }
+}
+
+case class CompressedSegmentation(segmentationName:String, compressedSegmentList:List[String]) extends JSONLDable {
+  override def partialJsonLD: JObject = {
+    ("segmentationName" -> segmentationName) ~
+    ("compressedSegmentList" -> compressedSegmentList.mkString("!"))
   }
 }
 

@@ -4,6 +4,7 @@ import java.io.{FileWriter, IOException}
 import java.net.InetAddress
 
 import com.typesafe.config._
+import com.typesafe.scalalogging.LazyLogging
 
 import org.json4s.native.JsonMethods._
 
@@ -27,7 +28,7 @@ trait ElasticConnector {
       conf.getInt("episb-bed-json-converter.elastic-port")))
 }
 
-trait JSONWriter {
+trait JSONWriter extends LazyLogging {
   def write(data:String):Either[String,Boolean]
   def write(data:List[JSONLDable]):Either[String,Boolean]
 }
@@ -35,6 +36,7 @@ trait JSONWriter {
 class ElasticSearchWriter(index:String, subIndex:String) extends JSONWriter with ElasticConnector {
   def write(data:String):Either[String,Boolean] = {
     try {
+      logger.debug(s"(ElasticSearchWriter::write): data=${data}")
       val esresponse:IndexResponse = esclient.prepareIndex(index, subIndex).
             setSource(data, XContentType.JSON).get()
       Right(true)
@@ -46,6 +48,7 @@ class ElasticSearchWriter(index:String, subIndex:String) extends JSONWriter with
   // write any JSONLDable class descendent into elastic
   // return how many items were written
   def write(data:List[JSONLDable]):Either[String,Boolean] = {
+    logger.debug(s"(ElasticSearchWriter::write): data=${data}")
     if (data.isEmpty) Left("Empty list, skipped commital")
     else {
       try {
@@ -66,6 +69,7 @@ class ElasticSearchWriter(index:String, subIndex:String) extends JSONWriter with
 // creates new file on every class instantiation
 class LocalFileWriter(path:String) extends JSONWriter {
   def write(data:String): Either[String, Boolean] = {
+    logger.debug(s"(LocalFileWriter::write): data=${data}")
     try {
       val f: FileWriter = new FileWriter(path)
       f.write(data) // write to local file
@@ -77,6 +81,7 @@ class LocalFileWriter(path:String) extends JSONWriter {
   }
 
   def write(data:List[JSONLDable]):Either[String,Boolean] = {
+    logger.debug(s"(LocalFileWriter::write): data=${data}")
     if (data.isEmpty) Left("Empty list, skipped commital")
     else {
       write(data.map(_.toJsonLD).mkString("\n"))

@@ -3,14 +3,13 @@ package com.github.oddodaoddo.sheffieldapp.datareader
 import java.nio.file.{Files, Paths}
 import java.io.IOException
 
-import ch.qos.logback.classic.{Logger}
+import com.typesafe.scalalogging.LazyLogging
 
 import com.github.oddodaoddo.sheffieldapp.datastructures.{Author, Experiment, Study}
-import com.github.oddodaoddo.sheffieldapp.util.Logging
 
 import scala.io.Source
 
-class Line(ln:String) extends Logging {
+class Line(ln:String) extends LazyLogging {
 
   private val delimeters = List("\t", ",", " ")
   // try to split a line in a file, based on a few delimeters
@@ -22,7 +21,7 @@ class Line(ln:String) extends Logging {
 
 }
 
-class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with Logging {
+class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with LazyLogging {
   // get column mappings from a header line
   // column mappings are a hash table mapping a
   // (column name -> position in line)
@@ -48,7 +47,7 @@ class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with Logging {
   def kwMatch:Boolean = kw.map(k => columnMappings.contains(k)).foldLeft(true)(_ && _)
 }
 
-trait FileReader extends java.io.Serializable with Logging {
+trait FileReader extends java.io.Serializable with LazyLogging {
 
   val path:String
   

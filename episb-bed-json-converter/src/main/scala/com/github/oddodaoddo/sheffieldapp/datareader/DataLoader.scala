@@ -9,11 +9,13 @@ import java.util.UUID.randomUUID
 
 import scala.io.Source
 
+import com.typesafe.scalalogging.LazyLogging
+
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 
-class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends Logging {
+class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends LazyLogging {
 
   logger.info("(LOLACoreConverter): pathsToLoad=${pathsToLoad}")
 
@@ -74,7 +76,8 @@ class SegmentationLoader(
   expName:String,
   reader: FileReader,
   writer:JSONWriter,
-  skipheader:Boolean) extends Logging {
+  writerCompressed:JSONWriter,
+  skipheader:Boolean) extends LazyLogging {
 
   // assumes non-headered file, columns 1, 2 and 3 are segment notation
   // annCols is a list of positions to use as columns for annotations
@@ -89,22 +92,15 @@ class SegmentationLoader(
     // here we assign a random UUID to the segment so it can be uniquely identified
     logger.info(s"(SegmentationLoader): creating Segment-> chr=${chr}, start=${segStart}, end=${segEnd}")
     new Segment(s"${segName}::${randomUUID.toString}",chr,segStart,segEnd)})).flatten)
-    // now get all the annotations
-    //val emptyExp = new Experiment("","","","","","","","")
-    //val emptyStudy = new Study(new Author("","",""),"","","")
-    /*val annotations:List[Annotation] = (f.lines.map(_.splits.map(ln => {
-      val chr = ln(0).slice(3, ln(0).size)
-      val segStart = ln(1).toInt
-      val segEnd = ln(2).toInt
-       val s = new Segment(chr,segStart,segEnd)
-      annCols.map(ann => {
-        val aval = ln(ann)
-        new Annotation(s, aval, name, emptyExp, emptyStudy)}).toList})).flatten).flatten*/
-    // now that we have the segmentation and the annotations, it is time to write them to elastic
-  val writerRes = writer.write(List(segmentation))
-  writerRes match {
+  // now that we have the segmentation and the annotations, it is time to write them to elastic
+  writer.write(List(segmentation)) match {
     case Left(msg) => logger.info(s"(SegmentationLoader::write) unsuccessful. msg=${msg}")
     case Right(bool) => logger.info(s"(SegmentationLoader::write) write successful")
+  }
+  // do the same with the compressed segment list (for faster searching)
+  writerCompressed.write(List(new CompressedSegmentation(segName, segmentation.segmentList.map(_.toString)))) match {
+    case Left(msg) => logger.info(s"(SegmentationLoader::write-compressed) unsuccessful. msg=${msg}")
+    case Right(bool) => logger.info(s"(SegmentationLoader::write-compressed) write successful")
   }
 }
 
@@ -128,10 +124,10 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
 
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
-  val segmentation:Either[String,Segmentation] = {
+  val segmentation:Either[String,CompressedSegmentation] = {
     val j = parse(json)
     try {
-      Right((j \\ "_source").extract[Segmentation])
+      Right((j \\ "_source").extract[CompressedSegmentation])
     } catch {
       case e:Exception => Left(e.getMessage)
     }
@@ -144,7 +140,7 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
       // instance of which is "s"
       // following function traverses the list of segments for a match
       // FIXME: figure out a faster way to search!!
-      
+      val segmentSearcher:SegmentMatcher = new SegmentMatcher(s)
       val anns:List[Annotation] = reader.lines.map(_.splits.map(ln => {
         val chr = ln(0).slice(3, ln(0).size)
         val segStart = ln(1).toInt
@@ -154,7 +150,7 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
         val emptyExp:Experiment = new Experiment(expName, "", "", "", "", "", "", "")
         val emptyStudy:Study = new Study(new Author("","",""),"","","")
 
-        val sp:Option[String] = segmentLookup(new Segment("",chr,segStart,segEnd))
+        val sp:Option[String] = segmentSearcher.exactMatch(new Segment("",chr,segStart,segEnd))
         if (sp.isDefined)
           // found a segment matching an annotation   
           new Annotation(sp.get,annVal.toString,emptyExp,emptyStudy)
@@ -176,7 +172,4 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
     case Left(msg) =>
       println(s"Could not retrieve segmentation from database. Error: ${msg}")
   }
-
-
-  
 }

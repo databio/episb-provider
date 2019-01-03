@@ -8,6 +8,7 @@ import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 import org.scalatra._
 import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse, SearchType}
+import org.elasticsearch.search.sort.{SortBuilder, SortBuilders}
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.TransportAddress
 import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders, RangeQueryBuilder, TermQueryBuilder}
@@ -124,11 +125,16 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
     }
   }
 
+  // can pass in ?compressed=true/false to retrieve the compressed version of a segmentation
+  // the returned result will be sorted by "chr" field
   get("/segmentation/get/ByNameWithSegments/:segName") {
     val segName = params("segName")
+    val compressed = params.getOrElse("compressed", "false").toBoolean
+    //val sorted
     try {
       val qb = QueryBuilders.termQuery("segmentationName", segName)
-      val response = esclient.prepareSearch("segmentations").
+      val response = esclient.prepareSearch(if (compressed) "compressed_segmentations" else "segmentations").
+        //addSort(SortBuilders.fieldSort("seg))
         setQuery(qb).setSize(1).get
       response.toString
     } catch {
