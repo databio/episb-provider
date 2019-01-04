@@ -48,6 +48,14 @@ case class JsonError(reason:String) {
   }
 }
 
+case class JsonSuccess() {
+  override def toString:String = {
+    val json = ("result" -> "Ok") ~
+      ("error" -> "None")
+    compact(render(json))
+  }
+}
+
 class episbRestServlet extends ScalatraServlet with ElasticConnector with FileUploadSupport {
 
   // set physical limit on file size (500Mb) - arbitrary right now
@@ -111,7 +119,7 @@ class episbRestServlet extends ScalatraServlet with ElasticConnector with FileUp
     }
   }
 
-  get("/segmentation/match/exact/:chr/:start/:end") {
+  get("/segmentations/match/exact/:chr/:start/:end") {
     val segStart:Int = params("start").toInt
     val segEnd:Int = params("end").toInt
     val chr:String = params("chr")
@@ -140,7 +148,7 @@ class episbRestServlet extends ScalatraServlet with ElasticConnector with FileUp
 
   // can pass in ?compressed=true/false to retrieve the compressed version of a segmentation
   // the returned result will be sorted by "chr" field
-  get("/segmentation/get/ByNameWithSegments/:segName") {
+  get("/segmentations/get/ByNameWithSegments/:segName") {
     val segName = params("segName")
     val compressed = params.getOrElse("compressed", "false").toBoolean
     //val sorted
@@ -161,7 +169,7 @@ class episbRestServlet extends ScalatraServlet with ElasticConnector with FileUp
   // from episb-bed-json-converter
   post("/experiments/add/preformatted/:expName/:segmName/:expfile") {
     // we also need the name of the bed file
-    val expName = params("segname")
+    /*val expName = params("segname")
     val segmName = params("segmname")
     // get the file
     val expfile  = fileParams("expfile")
@@ -176,7 +184,10 @@ class episbRestServlet extends ScalatraServlet with ElasticConnector with FileUp
     // FIXME: no error handling!
     elasticWriter.write(annotations)
 
-    // we also need to back-fill the segmentation we used
-    // I am providing a separate API for this
+    JsonSuccess.toString*/
+  }
+
+  // add an experiment to segmentations list  in elastic
+  post("/segmentations/update/:jsonUpdate") {
   }
 }

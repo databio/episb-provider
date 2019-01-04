@@ -5,6 +5,8 @@ import com.github.oddodaoddo.sheffieldapp.datastructures._
 
 import org.rogach.scallop._
 
+import java.io.FileWriter
+
 import com.typesafe.scalalogging.LazyLogging
 
 object ProcessRawLOLAData extends LazyLogging {
@@ -61,25 +63,20 @@ object ProcessAnnotationNonHeadered extends LazyLogging {
     //val probe = opt[Boolean]()
     val segname = opt[String](required=true)
     val expname = opt[String](required=true)
-    val path = opt[String](required=true)
-    val writer = opt[String](required=true)
-    val columns = opt[List[Int]](required=true)
+    val readfrom = opt[String](required=true)
+    val writeto = opt[String](required=true)
+    val column = opt[Int](required=true)
     verify()
   }
 
   def main(args:Array[String]): Unit = {
     val conf = new Conf(args)
-    val writer = conf.writer()
-    val ww:JSONWriter = if (writer == "elastic")
-      new ElasticSearchWriter("annotations", "annotation")
-    else
-      new LocalFileWriter(writer)
 
     new AnnotationLoader(
       conf.segname(),
       conf.expname(),
-      new LocalDiskFile(conf.path()),
-      ww,
-      conf.columns().head)
+      new LocalDiskFile(conf.readfrom()),
+      new FileWriter(conf.writeto()),
+      conf.column())
   }
 }

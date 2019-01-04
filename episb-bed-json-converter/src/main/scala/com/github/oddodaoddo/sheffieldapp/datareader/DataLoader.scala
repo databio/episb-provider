@@ -97,7 +97,8 @@ class SegmentationLoader(
     case Right(bool) => logger.info(s"(SegmentationLoader::write) write successful")
   }
   // do the same with the compressed segment list (for faster searching)
-  writerCompressed.write(List(new CompressedSegmentation(segName, segmentation.segmentList.map(_.toString)))) match {
+  writerCompressed.write(List(new CompressedSegmentation(segName, 
+    segmentation.segmentList.map(_.toString).mkString("!")))) match {
     case Left(msg) => logger.info(s"(SegmentationLoader::write-compressed) unsuccessful. msg=${msg}")
     case Right(bool) => logger.info(s"(SegmentationLoader::write-compressed) write successful")
   }
@@ -105,8 +106,14 @@ class SegmentationLoader(
 
 // assumes we know the segmentation we want to use
 // we can get the whole segmentation back and use the segments for this occasion
-// should also load in design interface
-class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer:JSONWriter, col:Int) {
+// write produce file (through "writer") that can be submitted to an API point to load in experiment
+// will load said file using API point
+// will also produce json design interface and update the list of segmentations in elastic (via API point)
+class AnnotationLoader(segName:String,
+  expName:String,
+  reader:FileReader,
+  writer:FileWriter,
+  col:Int) extends LazyLogging {
   /* algorithm:
    *   open file
    *   for each line
@@ -119,15 +126,13 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
 
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"http://localhost:8080/episb-rest-server/segmentation/get/ByNameWithSegments/${segName}?compressed=true"
-  val json = Source.fromURL(url).mkString
-
+  val url = s"http://localhost:8080/segmentations/get/ByNameWithSegments/${segName}?compressed=true"
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
   val segmentation:Either[String,CompressedSegmentation] = {
-    val j = parse(json)
     try {
-      Right((j \\ "_source").extract[CompressedSegmentation])
+      val json = parse(Source.fromURL(url).mkString)
+      Right((json \\ "_source").extract[CompressedSegmentation])
     } catch {
       case e:Exception => Left(e.getMessage)
     }
@@ -142,10 +147,12 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
       // FIXME: figure out a faster way to search!!
       val segmentSearcher:SegmentMatcher = new SegmentMatcher(s)
       val anns:List[Annotation] = reader.lines.map(_.splits.map(ln => {
+        logger.info(s"(AnnotationLoader): ln=${ln}")
         val chr = ln(0).slice(3, ln(0).size)
         val segStart = ln(1).toInt
         val segEnd = ln(2).toInt
         val annVal = if (ln.size >= col) ln(col) else -1
+        logger.info(s"(AnnotationLoader): chr=${chr},start=${segStart},end=${segEnd},annVal=${annVal}")
 
         val emptyExp:Experiment = new Experiment(expName, "", "", "", "", "", "", "")
         val emptyStudy:Study = new Study(new Author("","",""),"","","")
@@ -163,11 +170,20 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
         // now read annotation value at column x
         // and create an annotation object to commit to elastic (or to a file)
       })).flatten
-      val writerRes = writer.write(anns)
-      writerRes match {
-        case Left(msg) => println(msg)
-        case Right(bool) => println("write successful")
+      // create annotation list file to load into elastic with format:
+      // ann_value<tab>segmentID\n
+      val output:String = anns.map(ann => s"${ann.annValue}\t${ann.segmentID}").mkString("\n")
+      logger.info("(AnnotationLoader):output=${output}")
+      try {
+        writer.write(output)
+        writer.close
+      } catch {
+        // log error for now
+        case e:Exception => logger.error(s"(AnnotationLoader): failed writing into file. Err: ${e.getMessage}")
       }
+      // now call API point to load in experiment into elastic
+      //val expLoadUrl = s"http://localhost:8080/episb-rest-server/experiments/add/preformatted/${expName}/${segName}/${writer.}"
+  //val json = Source.fromURL(url).mkString
     }
     case Left(msg) =>
       println(s"Could not retrieve segmentation from database. Error: ${msg}")

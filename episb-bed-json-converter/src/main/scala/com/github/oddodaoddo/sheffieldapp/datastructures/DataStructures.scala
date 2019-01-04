@@ -48,10 +48,10 @@ case class Segmentation(segmentationName:String, segmentList:List[Segment]) exte
   }
 }
 
-case class CompressedSegmentation(segmentationName:String, compressedSegmentList:List[String]) extends JSONLDable {
+case class CompressedSegmentation(segmentationName:String, compressedSegments:String) extends JSONLDable {
   override def partialJsonLD: JObject = {
     ("segmentationName" -> segmentationName) ~
-    ("compressedSegmentList" -> compressedSegmentList.mkString("!"))
+    ("compressedSegments" -> compressedSegments)
   }
 }
 

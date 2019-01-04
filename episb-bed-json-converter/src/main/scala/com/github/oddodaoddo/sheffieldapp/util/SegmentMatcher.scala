@@ -12,9 +12,10 @@ class SegmentMatcher(sm:CompressedSegmentation) extends LazyLogging {
   // convert compressed segmentation into a hash table
   // indexed by "chr" pointing to a tuple (segStart,segEnd)
   // sorted by segStart
-  private val tpls:List[(String,(Int,Int,String))] = sm.compressedSegmentList.
-    map(_.split("!")).flatten.
-    map(_.split("|")).
+  logger.info(s"(SegmentSearcher)::init: sm=${sm.compressedSegments}")
+  private val tpls:List[(String,(Int,Int,String))] = sm.compressedSegments.
+    split("!").
+    map(_.split("\\|")).toList.
     map(s => (s(1), (s(2).toInt, s(3).toInt, s(0))))
 
   logger.debug(s"tpls=${tpls}")
@@ -36,10 +37,12 @@ class SegmentMatcher(sm:CompressedSegmentation) extends LazyLogging {
   // take a segment and match it against a segmentation
   // return segment ID or None
   def exactMatch(s:Segment):Option[String] = {
+    logger.info(s"(SegmentMatcher::exactMatch): Looking for segment ${s}")
     val result = if (chrBuckets.contains(s.segChr)) {
       logger.info(s"Found bucket belonging to chr=${s.segChr}")
       // found the chr of the segment
-      val where = chrBuckets(s.segChr).indexOf((s.segStart,s.segEnd))
+      logger.info(s"bucket=${chrBuckets(s.segChr)}")
+      val where = chrBuckets(s.segChr).indexWhere((x)=>(x._1,x._2)==(s.segStart,s.segEnd))
       if (where == -1) None
       else Some((chrBuckets(s.segChr)(where))._3)
     } else

@@ -8,6 +8,8 @@ version := "0.1.0-SNAPSHOT"
 
 scalaVersion := "2.12.8"
 
+ensimeIgnoreScalaMismatch in ThisBuild := true
+
 lazy val core = RootProject(file("../episb-bed-json-converter"))
 
 val main = Project(id = "application", base = file(".")).dependsOn(core)
