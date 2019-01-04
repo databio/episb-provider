@@ -80,18 +80,17 @@ class SegmentationLoader(
   skipheader:Boolean) extends LazyLogging {
 
   // assumes non-headered file, columns 1, 2 and 3 are segment notation
-  // annCols is a list of positions to use as columns for annotations
-  //private val f:LocalDiskFile = new LocalDiskFile(path)
   // get segmentation
   logger.info(s"(SegmentationLoader::params): segName=s{segName}, expName=s{expName}, skipheader=s{skipheader}")
   val lns = if (skipheader) reader.lines.tail else reader.lines
-  private val segmentation = new Segmentation(segName,lns.map(_.splits.map(ln => {
+  private val segs:List[Segment] = lns.map(_.splits.map(ln => {
     val chr = ln(0).slice(3, ln(0).size)
     val segStart = ln(1).toInt
     val segEnd = ln(2).toInt
     // here we assign a random UUID to the segment so it can be uniquely identified
     logger.info(s"(SegmentationLoader): creating Segment-> chr=${chr}, start=${segStart}, end=${segEnd}")
-    new Segment(s"${segName}::${randomUUID.toString}",chr,segStart,segEnd)})).flatten)
+    new Segment(s"${segName}::${randomUUID.toString}",chr,segStart,segEnd)})).flatten
+  private val segmentation:Segmentation = new Segmentation(segName, segs)
   // now that we have the segmentation and the annotations, it is time to write them to elastic
   writer.write(List(segmentation)) match {
     case Left(msg) => logger.info(s"(SegmentationLoader::write) unsuccessful. msg=${msg}")
@@ -106,6 +105,7 @@ class SegmentationLoader(
 
 // assumes we know the segmentation we want to use
 // we can get the whole segmentation back and use the segments for this occasion
+// should also load in design interface
 class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer:JSONWriter, col:Int) {
   /* algorithm:
    *   open file
@@ -119,7 +119,7 @@ class AnnotationLoader(segName:String, expName:String, reader:FileReader, writer
 
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"http://localhost:8080/episb-rest-server/segmentation/get/ByNameWithSegments/${segName}"
+  val url = s"http://localhost:8080/episb-rest-server/segmentation/get/ByNameWithSegments/${segName}?compressed=true"
   val json = Source.fromURL(url).mkString
 
   // we get back a segmentation in json or JsonError object

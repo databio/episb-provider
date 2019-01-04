@@ -1,5 +1,8 @@
 package com.github.oddodaoddo.episb
 
+import org.scalatra.ScalatraServlet
+import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
+
 import java.math.BigInteger
 import java.net.InetAddress
 
@@ -17,7 +20,11 @@ import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
 import org.json4s.JsonAST.JNothing
 
-object ElasticConnector {
+import com.github.oddodaoddo.sheffieldapp.util._
+import com.github.oddodaoddo.sheffieldapp.datareader._
+import com.github.oddodaoddo.sheffieldapp.datastructures._
+
+/*object ElasticConnector {
   def getESClient(host: String, port: Int): Either[String,TransportClient] = {
     try {
       val conf = ConfigFactory.load()
@@ -31,7 +38,7 @@ object ElasticConnector {
       case e: Exception => Left(s"Could not establish connection to Elastic cluster. Reason: ${e}")
     }
   }
-}
+}*/
 
 case class JsonError(reason:String) {
   override def toString:String = {
@@ -41,8 +48,14 @@ case class JsonError(reason:String) {
   }
 }
 
-class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
+class episbRestServlet extends ScalatraServlet with ElasticConnector with FileUploadSupport {
 
+  // set physical limit on file size (500Mb) - arbitrary right now
+  // maybe in the future we support .gz to allow a bigger file upload
+  configureMultipartHandling(MultipartConfig(maxFileSize = Some(500*1024*1024)))
+
+  val elasticWriter = new ElasticSearchWriter("annotations", "annotation")
+  
   get("/get/fromSegment/:start/:end") {
     // get the parameters to the query
     val segStart:Int = params("start").toInt
@@ -85,12 +98,12 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
       val responses:List[(Int,Int,String)] = filtered_sset.map(x => (x("segStart"),x("segEnd"),{
         val range1 = new RangeQueryBuilder("Segment.segStart").gte(x("segStart")).lte(x("segEnd"))
         val range2 = new RangeQueryBuilder("Segment.segEnd").gte(x("segStart")).lte(x("segEnd"))
-       // prepare an elastic query
-        esclient.prepareSearch("annotations").
-          setQuery(range1).
-          setPostFilter(range2).
-          setSize(100).
-          get.toString
+      // prepare an elastic query
+      esclient.prepareSearch("annotations").
+        setQuery(range1).
+        setPostFilter(range2).
+        setSize(100).
+        get.toString
       }))
       compact(render(responses.map(x => {
         ("segStart" -> x._1) ~ ("segEnd" -> x._2) ~("response" -> x._3)
@@ -140,5 +153,30 @@ class episbRestServlet(esclient:TransportClient) extends ScalatraServlet {
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
+  }
+
+  // this api point adds a pre-prepared experiment file with the following format
+  // annotation_value<tab>segmentationName::segmentID
+  // this file can be prepared on the command line using our utility
+  // from episb-bed-json-converter
+  post("/experiments/add/preformatted/:expName/:segmName/:expfile") {
+    // we also need the name of the bed file
+    val expName = params("segname")
+    val segmName = params("segmname")
+    // get the file
+    val expfile  = fileParams("expfile")
+
+    // now process it, assumes \n delimited lines
+    val lines:List[Array[String]] = expfile.get.toString.split("\n").toList.map(_.split("\t"))
+    val exp:Experiment = Experiment(expName,"","","","","","","Loaded from preformatted file")
+    val study:Study = Study(Author("episb","default","info@episb.org"),"","","")
+    val annotations:List[Annotation] = lines.map(ln => Annotation(ln(0), ln(1), exp, study))
+
+    // write those into elastic (for now)
+    // FIXME: no error handling!
+    elasticWriter.write(annotations)
+
+    // we also need to back-fill the segmentation we used
+    // I am providing a separate API for this
   }
 }
