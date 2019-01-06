@@ -174,8 +174,6 @@ class episbRestServlet extends ScalatraServlet
     val expName = params("expname")
     val segmName = params("segmname")
 
-    println(expName)
-    println(segmName)
     // get the file
     //val expfile  = fileParams("expfile")
     val expfile  = fileParams("expfile")
@@ -185,7 +183,6 @@ class episbRestServlet extends ScalatraServlet
 
     // now process it, assumes \n delimited lines
     val input = expfile.get.map(x => x.toChar).mkString("")
-    println("input=",input)
     val lines:List[Array[String]] = input.split("\n").toList.map(_.split("\t"))
     val exp:Experiment = Experiment(expName,"","","","","","","Loaded from preformatted file")
     val study:Study = Study(Author("episb","default","info@episb.org"),"","","")
@@ -195,7 +192,7 @@ class episbRestServlet extends ScalatraServlet
     // FIXME: no error handling!
     elasticWriter.write(annotations)
 
-    JsonSuccess.toString
+    JsonSuccess
   }
 
   // add an experiment to segmentations list  in elastic
