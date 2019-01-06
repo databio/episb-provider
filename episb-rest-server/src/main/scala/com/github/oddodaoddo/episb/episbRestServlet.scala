@@ -197,5 +197,14 @@ class episbRestServlet extends ScalatraServlet
 
   // add an experiment to segmentations list  in elastic
   post("/segmentations/update/:jsonUpdate") {
+    // we are adding to _segmentations index, type of document "interface"
+    val interface = params("jsonUpdate")
+
+    // get a connection to elasticsearch
+    val elasticWriter = new ElasticSearchWriter("segmentations", "interface")
+
+    elasticWriter.write(interface)
+
+    JsonSuccess
   }
 }
