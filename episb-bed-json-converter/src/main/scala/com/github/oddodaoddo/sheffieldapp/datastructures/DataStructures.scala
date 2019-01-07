@@ -86,3 +86,26 @@ case class Experiment(name:String, protocol:String,cellType:String,species:Strin
       ("experimentDescription" -> description)
   }
 }
+
+case class DesignInterface(providerName:String,
+                           providerDescription: String,
+                           segmentationName: String,
+                           experimentName: String,
+                           cellType: String,
+                           description: String,
+                           annotationKey: String,
+                           annotationRangeStart: String,
+                           annotationRangeEnd: String) extends JSONLDable {
+  override def partialJsonLD: JObject = {
+    ("providerName" -> providerName) ~
+    ("providerDescription" -> providerDescription) ~
+    ("segmentationName" -> segmentationName) ~
+    ("experimentName" -> experimentName) ~
+    ("cellType" -> cellType) ~
+    ("description" -> description) ~
+    ("annotationKey" -> annotationKey) ~
+    ("annotationRangeStart" -> annotationRangeStart) ~
+    ("annotationRangeEnd" -> annotationRangeEnd)
+  }
+}
+

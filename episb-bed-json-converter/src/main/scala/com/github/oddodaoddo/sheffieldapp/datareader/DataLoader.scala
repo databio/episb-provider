@@ -11,6 +11,8 @@ import scala.io.Source
 
 import com.typesafe.scalalogging.LazyLogging
 
+import scalaj.http._
+
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
@@ -112,7 +114,7 @@ class SegmentationLoader(
 class AnnotationLoader(segName:String,
   expName:String,
   reader:FileReader,
-  writer:FileWriter,
+  writeToPath:String,
   col:Int) extends LazyLogging {
   /* algorithm:
    *   open file
@@ -124,9 +126,12 @@ class AnnotationLoader(segName:String,
    */
   implicit val formats = DefaultFormats
 
+  // create the output file writer
+  val writer = new FileWriter(writeToPath)
+
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"http://localhost:8080/segmentations/get/ByNameWithSegments/${segName}?compressed=true"
+  val url = s"http://localhost:8080/episb-rest-server/segmentations/get/ByNameWithSegments/${segName}?compressed=true"
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
   val segmentation:Either[String,CompressedSegmentation] = {
@@ -172,18 +177,57 @@ class AnnotationLoader(segName:String,
       })).flatten
       // create annotation list file to load into elastic with format:
       // ann_value<tab>segmentID\n
-      val output:String = anns.map(ann => s"${ann.annValue}\t${ann.segmentID}").mkString("\n")
-      logger.info("(AnnotationLoader):output=${output}")
+      val outputStr:String = anns.map(ann => s"${ann.annValue}\t${ann.segmentID}").mkString("\n")
+      logger.info(s"(AnnotationLoader):output=${outputStr}")
       try {
-        writer.write(output)
+        writer.write(outputStr)
         writer.close
       } catch {
         // log error for now
         case e:Exception => logger.error(s"(AnnotationLoader): failed writing into file. Err: ${e.getMessage}")
       }
+
       // now call API point to load in experiment into elastic
-      //val expLoadUrl = s"http://localhost:8080/episb-rest-server/experiments/add/preformatted/${expName}/${segName}/${writer.}"
-  //val json = Source.fromURL(url).mkString
+      // first, prepare multi part form to post to server
+      //val formContentsStart = """--a93f5485f279c0 content-disposition: form-data; name="expfile"; filename="exp.out"\n\n"""
+      //val formContentsEnd = """\n--a93f5485f279c0--"""
+      //val formContents = formContentsStart + output + formContentsEnd
+
+      // now create the actual POST request
+      // should be equivalent to: 
+      // curl http://localhost:8080/experiments/add/preformatted/testexperiment/testsegmentation --data-binary @/tmp/multipart-message.data -X POST -i -H "Content-Type: multipart/form-data; boundary=a93f5485f279c0"
+      val formUrl = s"http://localhost:8080/episb-rest-server/experiments/add/preformatted/${expName}/${segName}"
+
+      val fileInByteArrayForm:Array[Byte] = outputStr.map(ch=>ch.toByte).toArray
+      // now submit the form as a POST request to the REST API server
+      val result = 
+        Http(formUrl).
+          postMulti(MultiPart("expfile", writeToPath, "text/plain", fileInByteArrayForm)).
+          option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString
+
+      println(result.toString)
+
+      // FIXME: for demo purposes we assume Ints for annotation values
+      // no error handling on conversion right now
+      // get annotation val min
+      val annValMin:Int = anns.map(ann => ann.annValue.toInt).min
+      val annValMax:Int = anns.map(ann => ann.annValue.toInt).max
+
+      // and add design interface at the end
+      // FIXME: we don't care if this design doc already exists
+      val di = DesignInterface("episb-provider",
+                               "sample segmentation provider",
+                               segName,
+                               expName,
+                               "sample cell type",
+                               "sample experiment description",
+                               "value",
+                               annValMin.toString,
+                               annValMax.toString)
+
+      val diUrl = s"http://localhost:8080/episb-rest-server/segmentations/update"
+      println(Http(diUrl).postData(di.toJsonLD).header("content-type", "application/json").
+        option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString)
     }
     case Left(msg) =>
       println(s"Could not retrieve segmentation from database. Error: ${msg}")

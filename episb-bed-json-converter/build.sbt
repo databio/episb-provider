@@ -20,5 +20,6 @@ libraryDependencies ++= Seq(
   "org.elasticsearch.client" % "elasticsearch-rest-client" % "6.4.2",
   "org.rogach" %% "scallop" % "3.1.5",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
-  "ch.qos.logback" % "logback-classic" % "1.2.3"
+  "ch.qos.logback" % "logback-classic" % "1.2.3",
+  "org.scalaj" %% "scalaj-http" % "2.4.1"
 )

@@ -76,7 +76,7 @@ object ProcessAnnotationNonHeadered extends LazyLogging {
       conf.segname(),
       conf.expname(),
       new LocalDiskFile(conf.readfrom()),
-      new FileWriter(conf.writeto()),
+      conf.writeto(),
       conf.column())
   }
 }

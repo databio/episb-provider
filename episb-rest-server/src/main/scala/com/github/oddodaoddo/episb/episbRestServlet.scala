@@ -19,6 +19,7 @@ import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
 import org.json4s.JsonAST.JNothing
+import com.typesafe.scalalogging.LazyLogging
 
 import com.github.oddodaoddo.sheffieldapp.util._
 import com.github.oddodaoddo.sheffieldapp.datareader._
@@ -60,7 +61,8 @@ class episbRestServlet extends ScalatraServlet
     with ElasticConnector 
     with FileUploadSupport
     with ScalateSupport
-    with ContentEncodingSupport {
+    with ContentEncodingSupport 
+    with LazyLogging {
 
   // set physical limit on file size (500Mb) - arbitrary right now
   // maybe in the future we support .gz to allow a bigger file upload
@@ -96,7 +98,7 @@ class episbRestServlet extends ScalatraServlet
 
     val json = parse(request.body)
     if (json \ "segmentSet" == JNothing)
-      "error!"
+      JsonError("No Segment Set section in request body")
     else {
       // get all segStart,segEnd pairs
       val sset:List[Map[String,BigInt]] = (json \ "segmentSet").values.asInstanceOf[List[Map[String,BigInt]]]
@@ -175,8 +177,9 @@ class episbRestServlet extends ScalatraServlet
     val segmName = params("segmname")
 
     // get the file
-    //val expfile  = fileParams("expfile")
     val expfile  = fileParams("expfile")
+
+    logger.info(s"(/experiments/add/preformatted):: expName=${expName}, segmName=${segmName}, expFile=${expfile}")
 
     // get a connection to elasticsearch
     val elasticWriter = new ElasticSearchWriter("annotations", "annotation")
@@ -196,14 +199,14 @@ class episbRestServlet extends ScalatraServlet
   }
 
   // add an experiment to segmentations list  in elastic
-  post("/segmentations/update/:jsonUpdate") {
+  post("/segmentations/update") {
     // we are adding to _segmentations index, type of document "interface"
-    val interface = params("jsonUpdate")
 
     // get a connection to elasticsearch
-    val elasticWriter = new ElasticSearchWriter("segmentations", "interface")
+    val elasticWriter = new ElasticSearchWriter("interfaces", "interface")
 
-    elasticWriter.write(interface)
+    // FIXME:: and write the received json verbatim
+    elasticWriter.write(request.body)
 
     JsonSuccess
   }
