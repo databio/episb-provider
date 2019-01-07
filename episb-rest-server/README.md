@@ -34,11 +34,11 @@ Then you can run the server as usual by starting sbt and then typing jetty:start
 
 ## REST API POINTS ##
 
-/segmentations/get/ByNameWithSegments/:segmentationName?compressed=true/false (GET)
+*/segmentations/get/ByNameWithSegments/:segmentationName?compressed=true/false (GET)*
 
 Returns a segmentation from elastic search (a list of segments with their IDs)
 
-/experiments/add/preformatted/:experimentName/:segmentationName (POST)
+*/experiments/add/preformatted/:experimentName/:segmentationName (POST)*
 
 Takes in a file formatted such as: "annotation_value\<tab\>segmentation_name::segment_id"
 
@@ -66,6 +66,10 @@ curl http://localhost:8080/experiments/add/preformatted/testexperiment/testsegme
 if you have the right segmentation name - it will work.
 
 The way the output file is created is via pulling the entire segmentation into memory and reorganizing it into a hash table indexed by chr (dividing it into chr buckets). The it reads the experiment file into memory and goes through it line by line. For each line it extracts the chr/start/stop components and the annotation value at the "columnt" that was passed to it. It will then search for an EXACT match in the segmentation and if it finds it, it will get the segment ID from the segmentatoon, include the annotation value and that ID into the output file. This is the file you upload to create an experiment.
+
+*/segmentations/update (POST)*
+
+The request body of this API point should contain a design interface describing an experiment served by the server.
 
 ## Future ##
 
