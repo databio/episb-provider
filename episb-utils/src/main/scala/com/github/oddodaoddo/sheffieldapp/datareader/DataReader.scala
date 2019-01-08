@@ -31,7 +31,7 @@ class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with LazyLogging {
 
   // FIXME: Not sure I like the typecast, can we see if we can use the Option as it was indended to be used?
   private val columnMappings:Map[String,Int] =
-    splits.getOrElse(List().asInstanceOf[List[String]]).map(x => x.toLowerCase).zipWithIndex.toMap
+    splits.getOrElse(List.empty[String]).map(x => x.toLowerCase).zipWithIndex.toMap
 
   // log things
   logger.info(s"(class HeaderLine): columnMappings=${columnMappings}")
@@ -62,6 +62,8 @@ trait FileReader extends java.io.Serializable with LazyLogging {
   // read in lines from a file that could be local or on the net (like a URL or on S3, e.g.)
   protected val contents:Option[List[String]] = read.map(x => x.toList)
 
+  logger.info(s"(FileReader)contents=${contents}")
+
   val lines:List[Line] = if (contents.isDefined && contents.get.size > 0) 
     contents.get.map(new Line(_))
   else List.empty
@@ -87,6 +89,8 @@ abstract class HeaderedFile(override val path:String, kw:List[String], strictMat
     contents.get.tail.map(new Line(_)) 
   else List.empty
 
+  logger.info(s"HeaderedFile):lines=${lines}")
+
   val header:Option[HeaderLine] = if (contents.isDefined && contents.get.size > 1) {
     val hl = new HeaderLine(contents.get.head, kw)
     if ((strictMatch && hl.kwMatch) || (!strictMatch))
@@ -110,7 +114,7 @@ class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean)
       (ln.splits.get.size == (header.get.size+1) || header.get("filename") <= ln.splits.get.size)).
     map(_.splits.get(header.get("filename")))
 
-  logger.info("(class LOLACoreIndexFile): fileList=${fileList}")
+  logger.info(s"(class LOLACoreIndexFile): fileList=${fileList}")
 
   // create all the Experiment objects from an index file
   // they are indexed by filename (usually a bed file filename)
@@ -148,6 +152,9 @@ class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean)
     val h = header.get
     val kwval:Map[String,String] = kw.map(k => 
       if (h.contains(k)) (k -> ln.apply(h(k))) else (k -> "")).toMap
+
+    logger.info(s"(LOLACoreCollectionFile):kwval=${kwval}")
+
     if (kwval.isEmpty)
       Study(Author("Default", "Author", "info@episb.org"),"","","")
     else {

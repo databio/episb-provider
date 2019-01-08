@@ -19,7 +19,7 @@ import org.json4s.JsonDSL._
 
 class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends LazyLogging {
 
-  logger.info("(LOLACoreConverter): pathsToLoad=${pathsToLoad}")
+  logger.info(s"(LOLACoreConverter): pathsToLoad=${pathsToLoad}")
 
   pathsToLoad.foreach(path => loadLOLACoreExperiment(path))
 
@@ -30,7 +30,7 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
   def loadLOLACoreExperiment(path:String) = {
     val sanitizedPath = if (path.endsWith("/")) path else path+"/"
     // get author info
-    val studyKw = List("collector", "data", "source", "description")
+    val studyKw = List("collector", "date", "source", "description")
     
     val indexKw = List("filename",
       "description",
@@ -41,7 +41,7 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
       "antibody",
       "treatment")
 
-    val study:Study = new LOLACoreCollectionFile(sanitizedPath + "collection.txt", studyKw, true).study
+    val study:Study = new LOLACoreCollectionFile(sanitizedPath + "collection.txt", studyKw, false).study
     // get study and experiment info
     val indexFile = new LOLACoreIndexFile(sanitizedPath + "index.txt", indexKw, false)
     // get list of bed files to process
@@ -61,7 +61,7 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
             // that the segmentation is unknown, so "sptag" property of Annotation is simply
             // the name of the experiment
             val e:Experiment = indexFile.experiments.get(bedFileName)
-            Annotation("LOLACore::${randomUUID}", {
+            Annotation(s"LOLACore::${randomUUID}", {
               if (s.size > 3) s(3) else ""}, e, study)})).flatten
         writer.write(anns) // write to wherever
         logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processed ${anns.size} annotations.")
