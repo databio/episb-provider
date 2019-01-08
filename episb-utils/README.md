@@ -2,7 +2,55 @@
 
 *NB: The code in this repo is transitioning away from manipulating Elasticsearch databases for the EPISB project by itself. Instead, we are using the REST API points provided by the episb-rest-server project.*
 
-commands to run code:
+*NB2: There are two ways to run things - one is on a personal (dev) machine, the other is in production (for now a single DC/OS machine at UVA). I shall explain both below:*
+
+<ul>Things necessary to run our code on a personal machine:
+<li>Elasticsearch</li>
+<li>Kibana (optional but helps to check database, run ad-hoc queries, etc.)</li>
+</ul>
+
+Install Elasticsearch by whatever means your OS supports or download it [here](https://www.elastic.co/downloads/past-releases/elasticsearch-6-4-2). We use version 6.4.2 right now. Do the same for [Kibana](https://www.elastic.co/downloads/past-releases/kibana-6-4-2)
+
+The only thing you will need for Elastic to run out of the box with our code right now is this elasticsearch.yml file below. Create it using whatever editor you prefer and use it to replace the elasticsearch.yml that came with the default install. 
+
+```
+cluster.name: episb-elastic-cluster
+path.data: /var/db/elasticsearch
+path.logs: /var/log/elasticsearch
+xpack.ml.enabled: false
+```
+
+Then start elasticsearch and kibana (in sequence one after the other). After a few minutes, you should be able to visit http://localhost:5601 to launch a Kibana console.
+
+If you have the proper credentials to ssh into the DC/OS machine we have running our experimental setup at UVA, you can tunnel to Kibana such as:
+
+```
+ssh -4 -fN -L 5601:localhost:5601 <username>@episb.org
+```
+
+Now you can open the browser and visit http://localhost:5601 like you would if Kibana was running on your own machine.
+
+For all the following commands, there are variable assumptions outlined below:
+
+* You are using ssh to log into episb.org and run these commands from a local clone of the [git repo](https://github.com/databio/episb-provider). This means that the [API server](https://github.com/databio/episb-provider/tree/master/episb-rest-server) is already set up for you and is running.
+* In this case the various databases such as LOLA are mounted using NFS on the machine.
+
+or,
+
+* You are running this on your own machine.
+* This means Elasticsearch is set up and running and
+* You are running the episb-rest-server by yourself (see separate instructions on how to do this [here](https://github.com/databio/episb-provider/tree/master/episb-rest-server) and
+* You have Java installed on the machine, as well as [sbt](https://www.scala-sbt.org/)
+* Side note: there is a way to run all the Scala code without sbt and just by using Java - I will provide these instructions later.
+
+Below examples assume you have done a
+
+```
+git clone git@github.com:databio/episb-provider.git
+cd episb-provider/episb-utils
+```
+
+Without further ado:
 
 ## For loading the LOLACore database:
 
