@@ -10,7 +10,7 @@ Things necessary to run our code on a personal machine:
 <li>Kibana (optional but helps to check database, run ad-hoc queries, etc.)</li>
 </ul>
 
-Install Elasticsearch by whatever means your OS supports or download it [here](https://www.elastic.co/downloads/past-releases/elasticsearch-6-4-2). We use version 6.4.2 right now. Do the same for [Kibana](https://www.elastic.co/downloads/past-releases/kibana-6-4-2)
+Install Elasticsearch by whatever means your OS supports or download it [here](https://www.elastic.co/downloads/past-releases/elasticsearch-6-4-2). We use version 6.4.2 right now. Do the same for [Kibana](https://www.elastic.co/downloads/past-releases/kibana-6-4-2).
 
 The only thing you will need for Elastic to run out of the box with our code right now is this elasticsearch.yml file below. Create it using whatever editor you prefer and use it to replace the elasticsearch.yml that came with the default install. 
 
@@ -23,7 +23,7 @@ xpack.ml.enabled: false
 
 The path.data and path.logs paths may be different on your local machine, depending on the way elasticsearch was installed.
 
-Then start elasticsearch and kibana (in sequence one after the other). After a few minutes, you should be able to visit http://localhost:5601 to launch a Kibana console.
+Then start elasticsearch and kibana (in sequence one after the other), by whichever way your OS provides. After a few minutes, you should be able to visit http://localhost:5601 to launch a Kibana console.
 
 If you have the proper credentials to ssh into the DC/OS machine we have running our experimental setup at UVA, you can tunnel to Kibana such as:
 
@@ -76,6 +76,8 @@ sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessRawLOLAData --writer=outp
 -> will commit all output to a local json file called output.json. Elastic is not used.
 
 If elasticsearch is used, all annotations found will be loaded into a local Elasticsearch index named "annotations".
+
+*Nota bene:* In the following discussion "non-headered" means that the bed files used do not have a header line as the first line of the file.
 
 ## For loading non-headered segmentations, run the following command:
 
