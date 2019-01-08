@@ -44,7 +44,7 @@ Takes in a file formatted such as: "annotation_value\<tab\>segmentation_name::se
 
 Right now we are not verifying much. It is the responsibility of the caller to make sure the segmentation exists.
 
-See documentation in episb-bed-json-provider on how to create this file (and the whole process surrounding it). *Nota bene*: the loading of the annotations is automated in the episb-bed-json-converted code, as a side-effect the file is created and can be loaded manually using curl (as below), for testing purposes.
+See documentation in [episb-bed-json-provider](https://github.com/databio/episb-provider/tree/master/episb-bed-json-converter) on how to create this file (and the whole process surrounding it). *Nota bene*: the loading of the annotations is automated in the episb-bed-json-converted code, as a side-effect the file is created and can be loaded manually using curl (as below), for testing purposes.
 
 To call the API point, create a following file (e.g. /tmp/multipart-message.data)
 
