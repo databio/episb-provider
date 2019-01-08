@@ -4,7 +4,8 @@
 
 *NB2: There are two ways to run things - one is on a personal (dev) machine, the other is in production (for now a single DC/OS machine at UVA). I shall explain both below:*
 
-<ul>Things necessary to run our code on a personal machine:
+Things necessary to run our code on a personal machine:
+<ul>
 <li>Elasticsearch</li>
 <li>Kibana (optional but helps to check database, run ad-hoc queries, etc.)</li>
 </ul>
@@ -19,6 +20,8 @@ path.data: /var/db/elasticsearch
 path.logs: /var/log/elasticsearch
 xpack.ml.enabled: false
 ```
+
+The path.data and path.logs paths may be different on your local machine, depending on the way elasticsearch was installed.
 
 Then start elasticsearch and kibana (in sequence one after the other). After a few minutes, you should be able to visit http://localhost:5601 to launch a Kibana console.
 
@@ -52,7 +55,7 @@ cd episb-provider/episb-utils
 
 Without further ado:
 
-## For loading the LOLACore database:
+## For loading the LOLACore database (DEPRECATED while we re-assess how to load LOLA Core with the new annotation/segmentation pairing format!)
 
 ``
 sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessRawLOLAData --writer=[elastic|<path to write into>] <regions/ directory from LOLA core db or a directory complying to such a format>"
@@ -91,7 +94,7 @@ The process of loading annotations has now been separated from loading the segme
 ## For loading non-headered annotations, run the following command:
 
 ``
-SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessAnnotationNonHeadered --segname=EncodeBroadHmm --expname="my_experiment_name" --readfrom=/home/ognen/wgEncodeBroadHmmGm12878HMM.bed --writeto=<file name such as /tmp/output.txt> --column=<column to get annotation value from>"
+SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessAnnotationNonHeadered --segname=encodebroadhmm --expname="my_experiment_name" --readfrom=/home/ognen/wgEncodeBroadHmmGm12878HMM.bed --writeto=/tmp/output.txt --column=<column to get annotation value from>"
 ``
 
 The above code will:
@@ -106,3 +109,10 @@ The above code will:
 <li>Produce a design interface JSON document for said experiment/segmentation coupling</li>
 <li>Use episb-rest-server to load in the design interface into elastic back-end</li>
 </ul>
+
+This command assumes:
+
+1. You know what column to use for an annotation value
+2. The episb-rest-server is running with an elasticsearch backend behind it
+3. All names of segmentations are lowercase (for now). This is because by default elastic does not recognize things with capital letters when searching.
+4. A segmentation exists in elastic by the name you are using in the --segname parameter.
