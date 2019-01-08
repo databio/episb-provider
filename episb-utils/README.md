@@ -1,6 +1,6 @@
-# episb-bed-json-converter
+# episb-utils
 
-*NB: The code in this repo is transitioning away from manipulating Elasticsearch databases for the EPISB project by itself. Instead, we are using the REST API points provided by the episb-rest-server project.*
+*NB: The code in this repo is transitioning away from manipulating Elasticsearch databases for the EPISB project by itself. Instead, we are using the REST API points provided by the [episb-rest-server](https://github.com/databio/episb-provider/tree/master/episb-rest-server) project.*
 
 *NB2: There are two ways to run things - one is on a personal (dev) machine, the other is in production (for now a single DC/OS machine at UVA). I shall explain both below:*
 
