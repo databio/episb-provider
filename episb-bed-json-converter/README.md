@@ -2,7 +2,7 @@
 
 commands to run code:
 
-# For loading the LOLACore database:
+## For loading the LOLACore database:
 
 ``
 sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessRawLOLAData --writer=[elastic|<path to write into>] <regions/ directory from LOLA core db or a directory complying to such a format>"
@@ -24,7 +24,7 @@ sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessRawLOLAData --writer=outp
 
 If elasticsearch is used, all annotations found will be loaded into a local Elasticsearch index named "annotations".
 
-# For loading non-headered segmentations, run the following command:
+## For loading non-headered segmentations, run the following command:
 
 ``
 SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessSegmentationNonHeadered --segname=<name of segmentation> --expname=<name of experiment> --path=<path to bed file> --writer=[elastic|<path to write into]"
@@ -38,7 +38,7 @@ SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessSegmen
 
 The process of loading annotations has now been separated from loading the segmentations. All segmentations found will be loaded into a local Elasticsearch index called "segmentations". See the explanation for the --writer parameter in the section explaining loading of raw LOLA data above.
 
-# For loading non-headered annotations, run the following command:
+## For loading non-headered annotations, run the following command:
 
 ``
 SBT_OPTS="-Xmx16G" sbt "runMain com.github.oddodaoddo.sheffieldapp.ProcessAnnotationNonHeadered --segname=EncodeBroadHmm --expname="my_experiment_name" --readfrom=/home/ognen/wgEncodeBroadHmmGm12878HMM.bed --writeto=<file name such as /tmp/output.txt> --column=<column to get annotation value from>"
