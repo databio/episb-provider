@@ -1,5 +1,7 @@
 # episb-bed-json-converter
 
+*NB: The code in this repo is transitioning away from manipulating Elasticsearch databases for the EPISB project by itself. Instead, we are using the REST API points provided by the episb-rest-server project.*
+
 commands to run code:
 
 ## For loading the LOLACore database:
