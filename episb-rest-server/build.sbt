@@ -10,7 +10,7 @@ scalaVersion := "2.12.8"
 
 ensimeIgnoreScalaMismatch in ThisBuild := true
 
-lazy val core = RootProject(file("../episb-bed-json-converter"))
+lazy val core = RootProject(file("../episb-utils"))
 
 val main = Project(id = "application", base = file(".")).dependsOn(core)
 
