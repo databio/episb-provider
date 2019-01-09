@@ -8,8 +8,12 @@ import java.math.BigInteger
 import java.net.InetAddress
 
 import com.typesafe.config.ConfigFactory
+
+import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
+import org.json4s.JsonAST.JNothing
+
 import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse, SearchType}
 import org.elasticsearch.search.sort.{SortBuilder, SortBuilders}
 import org.elasticsearch.client.transport.TransportClient
@@ -18,7 +22,7 @@ import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders, RangeQuer
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
-import org.json4s.JsonAST.JNothing
+
 import com.typesafe.scalalogging.LazyLogging
 
 import com.github.oddodaoddo.sheffieldapp.util._
@@ -49,10 +53,13 @@ case class JsonError(reason:String) {
   }
 }
 
-case class JsonSuccess() {
+case class JsonSuccess(result:List[JSONLDable]) {
   override def toString:String = {
-    val json = ("result" -> "Ok") ~
-      ("error" -> "None")
+    val json = if (result.isEmpty) {
+      ("result" -> "Ok") ~ ("error" -> "None")
+    } else {
+      ("result" -> result.map(x => x.toJsonLD)) ~ ("error" -> "None")
+    }
     compact(render(json))
   }
 }
@@ -64,10 +71,13 @@ class episbRestServlet extends ScalatraServlet
     with ContentEncodingSupport 
     with LazyLogging {
 
-  // set physical limit on file size (500Mb) - arbitrary right now
+  implicit val formats = DefaultFormats
+
+  // set physical limit on file size uploads (500Mb) - arbitrary right now
   // maybe in the future we support .gz to allow a bigger file upload
   configureMultipartHandling(MultipartConfig(maxFileSize = Some(500*1024*1024)))
   
+  // first API point: get segments for a range of start/end
   get("/get/fromSegment/:start/:end") {
     // get the parameters to the query
     val segStart:Int = params("start").toInt
@@ -76,17 +86,36 @@ class episbRestServlet extends ScalatraServlet
     if (segStart>segEnd)
       JsonError(s"segStart(${segStart}) > segEnd(${segEnd})").toString
     else {
-      val range1 = new RangeQueryBuilder("Segment.segStart").gte(segStart).lte(segEnd)
-      val range2 = new RangeQueryBuilder("Segment.segEnd").gte(segStart).lte(segEnd)
+      val range1 = new RangeQueryBuilder("segmentList.segStart").gte(segStart).lte(segEnd)
+      val range2 = new RangeQueryBuilder("segmentList.segEnd").gte(segStart).lte(segEnd)
 
-      // prepare an elastic query
-      val response: SearchResponse = esclient.prepareSearch("annotations").
+      // first we need to get all the segments IDs that match the start/end range
+      val response: SearchResponse = esclient.prepareSearch("segmentations").
         setQuery(range1).
         setPostFilter(range2).
-        setSize(10000).
+        setSize(100).
         get
 
-      response.toString
+      // get the compressed segmentation out of a normal segmentation
+      // FIXME: assumes segments exist (for now)
+      val cs:Option[CompressedSegmentation] = try {
+        val j = parse(response.toString)
+        // get the segmentation from the response
+        val segm = (j \\ "_source").extract[Segmentation]
+        // get the compressed segmentation now
+        Some(CompressedSegmentation(segm.segmentationName, segm.segmentList.map(x => x.toString).mkString("!")))
+      } catch {
+        case e:Exception => None
+      }
+
+      if (cs.isDefined) {
+        // we have a compressed segmentation to work with
+        val sm = new SegmentMatcher(cs.get)
+        // get all the segment IDs that matched the filter query
+        val segIDlst:List[Segment] = sm.filterBySegmentRange(segStart, segEnd)
+        JsonSuccess(segIDlst)
+      } else 
+          JsonError("No segments found with that range")
     }
   }
 
@@ -189,13 +218,13 @@ class episbRestServlet extends ScalatraServlet
     val lines:List[Array[String]] = input.split("\n").toList.map(_.split("\t"))
     val exp:Experiment = Experiment(expName,"","","","","","","Loaded from preformatted file")
     val study:Study = Study(Author("episb","default","info@episb.org"),"","","")
-    val annotations:List[Annotation] = lines.map(ln => Annotation(ln(0), ln(1), exp, study))
+    val annotations:List[Annotation] = lines.map(ln => Annotation(ln(1), ln(0), exp, study))
 
     // write those into elastic (for now)
     // FIXME: no error handling!
     elasticWriter.write(annotations)
 
-    JsonSuccess
+    JsonSuccess(List.empty[JSONLDable])
   }
 
   // add an experiment to segmentations list  in elastic

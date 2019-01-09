@@ -12,13 +12,13 @@ class SegmentMatcher(sm:CompressedSegmentation) extends LazyLogging {
   // convert compressed segmentation into a hash table
   // indexed by "chr" pointing to a tuple (segStart,segEnd)
   // sorted by segStart
-  logger.info(s"(SegmentSearcher)::init: sm=${sm.compressedSegments}")
+  logger.debug(s"(SegmentSearcher)::init: sm=${sm.compressedSegments}")
   private val tpls:List[(String,(Int,Int,String))] = sm.compressedSegments.
     split("!").
     map(_.split("\\|")).toList.
     map(s => (s(1), (s(2).toInt, s(3).toInt, s(0))))
 
-  logger.debug(s"tpls=${tpls}")
+  // logger.debug(s"tpls=${tpls}")
   // by here we have a sorted List of tripples (chr,start,end) by chr
   // do a non-recursive re-ordering of the List[(String,Int,Int) into a
   // Map[String,List(Int,Int)] where the hash table is indexed by "chr"
@@ -32,16 +32,16 @@ class SegmentMatcher(sm:CompressedSegmentation) extends LazyLogging {
   private val chrBuckets:Map[String,List[(Int,Int,String)]] = chrBucketsUnsorted.keys.map(k => 
     (k -> chrBucketsUnsorted(k).sorted)).toMap
 
-  logger.debug(s"chrBuckets]${chrBuckets}")
+  //logger.debug(s"chrBuckets]${chrBuckets}")
 
   // take a segment and match it against a segmentation
   // return segment ID or None
   def exactMatch(s:Segment):Option[String] = {
     logger.info(s"(SegmentMatcher::exactMatch): Looking for segment ${s}")
     val result = if (chrBuckets.contains(s.segChr)) {
-      logger.info(s"Found bucket belonging to chr=${s.segChr}")
+      // logger.info(s"Found bucket belonging to chr=${s.segChr}")
       // found the chr of the segment
-      logger.info(s"bucket=${chrBuckets(s.segChr)}")
+      // logger.info(s"bucket=${chrBuckets(s.segChr)}")
       val where = chrBuckets(s.segChr).indexWhere((x)=>(x._1,x._2)==(s.segStart,s.segEnd))
       if (where == -1) None
       else Some((chrBuckets(s.segChr)(where))._3)
@@ -49,5 +49,11 @@ class SegmentMatcher(sm:CompressedSegmentation) extends LazyLogging {
         None
     logger.info(s"(SegmentMatcher::ExactMatch): ${result}")
     result
+  }
+
+  // return all segments for a given segment start/end range
+  def filterBySegmentRange(segStart:Int, segEnd:Int):List[Segment] = {
+    tpls.filter(x => ((x._2._1>=segStart && x._2._1<=segEnd) && (x._2._2>=segStart && x._2._2<=segEnd))).
+      map(c => Segment(c._2._3, c._1, c._2._1, c._2._2))
   }
 }
