@@ -16,7 +16,7 @@ The included script restart_tomcat.sh is provided if you choose to run the provi
 
 Hence, all APIs in the episb-provider system have the same starting path above.
 
-For more Tomcat configuration, the files usually reside in a location such as /etc/tomcat (but can vary with Linux or BSD flavors). For more informatiom on configuring Tomcat [see](https://tomcat.apache.org/tomcat-8.5-doc/index.html)
+For more Tomcat configuration, the files usually reside in a location such as /etc/tomcat (but can vary with Linux or BSD flavors). For more informatiom on configuring Tomcat see [this document](https://tomcat.apache.org/tomcat-8.5-doc/index.html).
 
 ## Test install ##
 
