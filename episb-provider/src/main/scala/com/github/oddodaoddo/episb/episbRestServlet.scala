@@ -49,8 +49,8 @@ case class JsonSuccess(result:List[JSONLDable]) {
 }
 
 // these are hits from elastic search
-//case class Hit(_index:String,_type:String,_id:String,_score:Int,_source:Segment)
-//case class Hits(total:Int,max_score:Int,hits:List[Hit])
+case class hitDesignInterface(_index:String,_type:String,_id:String,_score:Int,_source:DesignInterface)
+case class HitsDesignInterface(total:Int,max_score:Int,hits:List[hitDesignInterface])
 
 class episbRestServlet extends ScalatraServlet 
     with ElasticConnector 
@@ -229,8 +229,6 @@ class episbRestServlet extends ScalatraServlet
 
   // add an experiment to segmentations list  in elastic
   post("/segmentations/update") {
-    // we are adding to _segmentations index, type of document "interface"
-
     // get a connection to elasticsearch
     val elasticWriter = new ElasticSearchWriter("interfaces", "interface")
 
@@ -239,4 +237,18 @@ class episbRestServlet extends ScalatraServlet
 
     JsonSuccess
   }
+
+  // get all "design interfaces" from the provider
+  get("/segmentations/get/all") {      
+    val response = esclient.prepareSearch("interfaces").setSize(1000).get
+
+    try {
+      val j = (parse(response.toString) \ "hits").extract[HitsDesignInterface]
+      val dis:List[DesignInterface] = j.hits.map(_._source)
+      JsonSuccess(dis)
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
+    }
+  }
+
 }
