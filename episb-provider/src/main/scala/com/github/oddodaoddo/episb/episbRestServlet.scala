@@ -40,9 +40,9 @@ case class JsonError(reason:String) {
 case class JsonSuccess(result:List[JSONLDable]) {
   override def toString:String = {
     val json = if (result.isEmpty) {
-      ("result" -> "Ok") ~ ("error" -> "None")
+      (("result" -> "Ok") ~ ("error" -> "None"))
     } else {
-      ("result" -> result.map(x => x.toJsonLD)) ~ ("error" -> "None")
+      (("result" -> result.map(r => r.partialJsonLD)) ~ ("error" -> "None"))
     }
     compact(render(json))
   }
