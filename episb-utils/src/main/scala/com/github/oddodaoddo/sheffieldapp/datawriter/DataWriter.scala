@@ -21,11 +21,11 @@ trait ElasticConnector {
   // read config file
   private val conf = ConfigFactory.load()
   private val settings:Settings = Settings.builder().
-    put("cluster.name", conf.getString("episb-bed-json-converter.elastic-cluster-name")).build()
+    put("cluster.name", conf.getString("episb-utils.elastic-cluster-name")).build()
   val esclient = new PreBuiltTransportClient(settings).
     addTransportAddress(new TransportAddress(InetAddress.
-      getByName(conf.getString("episb-bed-json-converter.elastic-host")),
-      conf.getInt("episb-bed-json-converter.elastic-port")))
+      getByName(conf.getString("episb-utils.elastic-host")),
+      conf.getInt("episb-utils.elastic-port")))
 }
 
 trait JSONWriter extends LazyLogging {

@@ -2,13 +2,13 @@ val ScalatraVersion = "2.6.4"
 
 organization := "com.github.oddodaoddo"
 
-name := "episb-rest-server"
+name := "episb-provider"
 
 version := "0.1.0-SNAPSHOT"
 
 scalaVersion := "2.12.8"
 
-//ensimeIgnoreScalaMismatch in ThisBuild := true
+ensimeIgnoreScalaMismatch in ThisBuild := true
 
 lazy val core = RootProject(file("../episb-utils"))
 

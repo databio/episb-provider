@@ -10,6 +10,7 @@ import java.util.UUID.randomUUID
 import scala.io.Source
 
 import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.config._
 
 import scalaj.http._
 
@@ -17,11 +18,16 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 
-// these are to be able to translate the hits returned from elastic search
-case class hit(_index:String,_type:String,_id:String,_score:Int,_source:Segment)
-case class Hits(total:Int,max_score:Int,hits:List[hit])
-
 class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends LazyLogging {
+
+  val constructBaseUrl:String = {
+    private val conf = ConfigFactory.load()
+    val providerUrl = conf.getString("episb-utils.provider-url")
+    val providerUrlBase = conf.getString("episb-utils.provider-url-base")
+    val providerPort = conf.getString("episb-utils.episb-provider-port")
+    val finalUrl = "http://"+providerUrl+":"+providerPort+"/"+providerUrlBase
+    if (finalUrl.endsWith("/")) finalUrl.init else finalUrl
+  }
 
   logger.info(s"(LOLACoreConverter): pathsToLoad=${pathsToLoad}")
 
@@ -131,7 +137,7 @@ class AnnotationLoader(segName:String,
 
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"http://localhost:8080/episb-rest-server/segments/get/BySegmentationName/${segName}"
+  val url = s"${constructBaseUrl}/segments/get/BySegmentationName/${segName}"
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
   val elasticHits:Either[String,Hits] = {
@@ -174,7 +180,7 @@ class AnnotationLoader(segName:String,
         // now we need to turn this list into a searchable data structure
         // and search it for a particular segment chr/start/end and get resulting segment ID
         // this segment ID is in form <segmentation>::uuid
-        // now read annotation value at column x
+        // now read annotation value at column
         // and create an annotation object to commit to elastic (or to a file)
       })).flatten
       // create annotation list file to load into elastic with format:
@@ -202,7 +208,7 @@ class AnnotationLoader(segName:String,
       // now create the actual POST request
       // should be equivalent to: 
       // curl http://localhost:8080/experiments/add/preformatted/testexperiment/testsegmentation --data-binary @/tmp/multipart-message.data -X POST -i -H "Content-Type: multipart/form-data; boundary=a93f5485f279c0"
-      val formUrl = s"http://localhost:8080/episb-rest-server/experiments/add/preformatted/${expName}/${segName}"
+      val formUrl = s"${constructBaseUrl}/experiments/add/preformatted/${expName}/${segName}"
 
       val fileInByteArrayForm:Array[Byte] = outputStr.map(ch=>ch.toByte).toArray
       // now submit the form as a POST request to the REST API server
@@ -231,7 +237,7 @@ class AnnotationLoader(segName:String,
                                annValMin.toString,
                                annValMax.toString)
 
-      val diUrl = s"http://localhost:8080/episb-rest-server/segmentations/update"
+      val diUrl = s"${constructBaseUrl/segmentations/update}"
       println(Http(diUrl).postData(di.toJsonLD).header("content-type", "application/json").
         option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString)
     }

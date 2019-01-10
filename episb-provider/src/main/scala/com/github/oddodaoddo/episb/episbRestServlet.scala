@@ -29,22 +29,6 @@ import com.github.oddodaoddo.sheffieldapp.util._
 import com.github.oddodaoddo.sheffieldapp.datareader._
 import com.github.oddodaoddo.sheffieldapp.datastructures._
 
-/*object ElasticConnector {
-  def getESClient(host: String, port: Int): Either[String,TransportClient] = {
-    try {
-      val conf = ConfigFactory.load()
-      val settings:Settings = Settings.builder().
-        put("cluster.name", conf.getString("episb-rest-server.elastic-cluster-name")).build()
-      Right(new PreBuiltTransportClient(settings).
-        addTransportAddress(new TransportAddress(InetAddress.
-        getByName(conf.getString("episb-rest-server.elastic-host")),
-          conf.getInt("episb-rest-server.elastic-port"))))
-    } catch {
-      case e: Exception => Left(s"Could not establish connection to Elastic cluster. Reason: ${e}")
-    }
-  }
-}*/
-
 case class JsonError(reason:String) {
   override def toString:String = {
     val json = ("result" -> "None") ~
@@ -65,8 +49,8 @@ case class JsonSuccess(result:List[JSONLDable]) {
 }
 
 // these are hits from elastic search
-case class Hit(_index:String,_type:String,_id:String,_score:Int,_source:Segment)
-case class Hits(total:Int,max_score:Int,hits:List[Hit])
+//case class Hit(_index:String,_type:String,_id:String,_score:Int,_source:Segment)
+//case class Hits(total:Int,max_score:Int,hits:List[Hit])
 
 class episbRestServlet extends ScalatraServlet 
     with ElasticConnector 
