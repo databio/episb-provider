@@ -21,8 +21,8 @@ import org.json4s.JsonDSL._
 protected object ConfigReader {
   val constructBaseUrl:String = {
     val conf = ConfigFactory.load()
-    val providerUrl = conf.getString("episb-utils.provider-url")
-    val providerUrlBase = conf.getString("episb-utils.provider-url-base")
+    val providerUrl = conf.getString("episb-utils.episb-provider-url")
+    val providerUrlBase = conf.getString("episb-utils.episb-provider-url-base")
     val providerPort = conf.getString("episb-utils.episb-provider-port")
     val finalUrl = "http://"+providerUrl+":"+providerPort+"/"+providerUrlBase
     if (finalUrl.endsWith("/")) finalUrl.init else finalUrl
@@ -239,7 +239,7 @@ class AnnotationLoader(segName:String,
                                annValMin.toString,
                                annValMax.toString)
 
-      val diUrl = s"${ConfigReader.constructBaseUrl}/segmentations/update}"
+      val diUrl = s"${ConfigReader.constructBaseUrl}/segmentations/update"
       println(Http(diUrl).postData(di.toJsonLD).header("content-type", "application/json").
         option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString)
     }
