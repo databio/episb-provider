@@ -170,7 +170,7 @@ class AnnotationLoader(segName:String,
           new Annotation(sp.get,annVal.toString,emptyExp,emptyStudy)
         else
           // FIXME: decide what to do if segment cannot be found
-          new Annotation("unknown segment ID","",emptyExp,emptyStudy)
+          new Annotation("unknown segment ID","-1",emptyExp,emptyStudy)
         // now we need to turn this list into a searchable data structure
         // and search it for a particular segment chr/start/end and get resulting segment ID
         // this segment ID is in form <segmentation>::uuid
