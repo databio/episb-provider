@@ -12,25 +12,33 @@ $ sbt
 > jetty:start
 ```
 
-Then launch a browser and point it to localhost:8080
+The included script restart_tomcat.sh is provided if you choose to run the provider in a more robust (production) fashion. Instead of using the jetty engine included with the Scalatra framework, it relies on a local install of Tomcat. In particular, the location where the app will be "exploded" (Tomcat terminology that roughly means "unpacked and installed") is assumed to be the /usr/share/tomcat/webapps/ directory. If your installation of tomcat has a different webapps directory please adjust accordingly. The included script will simply package a "war" file from the code and copy this war file under the name /usr/share/tomcat/webapps/episb-provider.war. Tomcat will sense that this file is there, automatically "explode" it and serve whatever Java application is in this file at the http://localhost:8080/episb-provider/ path.
 
-NB: Going to url:8080/"type anything here" as in the above "localhost:8080/list" will make the server list all the "paths" it is listening to (effectively listing all the REST API points it knows).
+Hence, all APIs in the episb-provider system have the same starting path above.
+
+For more Tomcat configuration, the files usually reside in a location such as /etc/tomcat (but can vary with Linux or BSD flavors). For more informatiom on configuring Tomcat [see](https://tomcat.apache.org/tomcat-8.5-doc/index.html)
+
+## Test install ##
+
+After the above steps are completed, launch a browser and point it to localhost:8080/episb-provider/list
+
+*NB: Going to url:8080/"type anything here" as in the above "localhost:8080/episb-provider/list" will make the server list all the "paths" it is listening to (effectively listing all the REST API points it knows).*
 
 ## Dependencies ##
 
-The REST API code depends on a running local instance of Elasticsearch. This is where all the queries are performed in the background and results served back to the client.
+The REST API code depends on a running local instance of [Elasticsearch](https://www.elastic.co/products/elasticsearch). This is where all the queries are performed in the background and results served back to the client. Currently we depend on Elasticsearch 6.4.2. Usually Elastic can be installed using whatever facilities the underlying operating system provides (yum for Redhat derivatives, apt for Debian variants, pkg install for BSD variants, so on and so on).
+
+Configuring elasticsearch for optimal use is beyond the scope of this document. We are including a Docker compose file that will allow you to run elasticsearch as a collection of container instances [here](). Do note that the docker-compose file will spin off five Docker containers each running elastic with a heap size of 32Gb! They will all run on a single machine as well, meaning that you should plan on this machine having ample memory. If Docker is not applicable to your setup - elasticsearch is happy to run as a basic install as mentioned above. We are including an elasticsearch.yml file to be used for a basic elastic install by way of copying it into /etc/elasticsearch/ (or /usr/local/etc/elasticsearch on FreeBSD, for example).
+
+In order to check what is stored/indexed by Elasticsearch, a developer concole called [Kibana](https://www.elastic.co/products/kibana) is used (however, Elastic supports access via the http protocol so a basic "curl" will do as well!). It is beyond the scope of this document to provide instruction on Elasticsearch query DSL/APIs or Kibana.
 
 ## Status ##
 
-There are a lot of "FIXME" and configuration issues to get the project to production quality stage. Bear with me :-)
+There are a lot of "FIXME" and configuration issues to get the project to production quality stage. Bear with us :-)
 
-## Testing scenario ##
+## Data stored in Elasticsearch ##
 
-In order to test the episb-rest-server code, one can add the following line to the build.sbt file in the episb-rest-server directory:
-
-containerPort in Jetty := 8090
-
-Then you can run the server as usual by starting sbt and then typing jetty:start. The server will now run on port 8090 and thus will not interfere with anything that might be running in production on port 8080.
+Before we discuss the provided REST API points, see this [document](https://github.com/databio/episb-hub/blob/master/docs/data-organization.md) for more information on how data is organized in the episb-provider's Elasticsearch backend.
 
 ## REST API POINTS ##
 

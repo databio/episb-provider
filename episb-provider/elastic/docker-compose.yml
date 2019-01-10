@@ -1,0 +1,103 @@
+version: '2.2'
+services:
+  elasticsearch:
+    image: elasticsearch-custom
+    container_name: elasticsearch
+    environment:
+      - "cluster.name=episb-elastic-cluster"
+      - "bootstrap.memory_lock=true"
+      - "node.name=node-1"
+      - "ES_JAVA_OPTS=-Xms31g -Xmx31g -Djava.net.preferIPv4Stack=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/home/ognen/elastic/data
+      - /var/log/elasticsearch:/var/log/elasticsearch
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - esnet
+  elasticsearch2:
+    image: elasticsearch-custom
+    container_name: elasticsearch2
+    environment:
+      - "cluster.name=episb-elastic-cluster"
+      - "bootstrap.memory_lock=true"
+      - "node.name=node-2"
+      - "ES_JAVA_OPTS=-Xms31g -Xmx31g -Djava.net.preferIPv4Stack=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata2:/home/ognen/elastic/data2
+      - /var/log/elasticsearch:/var/log/elasticsearch
+    networks:
+      - esnet
+  elasticsearch3:
+    image: elasticsearch-custom
+    container_name: elasticsearch3
+    environment:
+      - "cluster.name=episb-elastic-cluster"
+      - "bootstrap.memory_lock=true"
+      - "node.name=node-3"
+      - "ES_JAVA_OPTS=-Xms31g -Xmx31g -Djava.net.preferIPv4Stack=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata3:/home/ognen/elastic/data3
+      - /var/log/elasticsearch:/var/log/elasticsearch
+    networks:
+      - esnet
+  elasticsearch4:
+    image: elasticsearch-custom
+    container_name: elasticsearch4
+    environment:
+      - "cluster.name=episb-elastic-cluster"
+      - "bootstrap.memory_lock=true"
+      - "node.name=node-4"
+      - "ES_JAVA_OPTS=-Xms31g -Xmx31g -Djava.net.preferIPv4Stack=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata4:/home/ognen/elastic/data4
+      - /var/log/elasticsearch:/var/log/elasticsearch
+    networks:
+      - esnet
+  elasticsearch5:
+    image: elasticsearch-custom
+    container_name: elasticsearch5
+    environment:
+      - "cluster.name=episb-elastic-cluster"
+      - "bootstrap.memory_lock=true"
+      - "node.name=node-5"
+      - "ES_JAVA_OPTS=-Xms31g -Xmx31g -Djava.net.preferIPv4Stack=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata5:/home/ognen/elastic/data5
+      - /var/log/elasticsearch:/var/log/elasticsearch
+    networks:
+      - esnet
+volumes:
+  esdata1:
+    driver: local
+  esdata2:
+    driver: local
+  esdata3:
+    driver: local
+  esdata4:
+    driver: local
+  esdata5:
+    driver: local
+networks:
+  esnet:
