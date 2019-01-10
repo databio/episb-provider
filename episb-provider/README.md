@@ -1,4 +1,4 @@
-# episb-rest-server #
+# episb-provider #
 
 ## Purpose ##
 
@@ -28,7 +28,7 @@ After the above steps are completed, launch a browser and point it to localhost:
 
 The REST API code depends on a running local instance of [Elasticsearch](https://www.elastic.co/products/elasticsearch). This is where all the queries are performed in the background and results served back to the client. Currently we depend on Elasticsearch 6.4.2. Usually Elastic can be installed using whatever facilities the underlying operating system provides (yum for Redhat derivatives, apt for Debian variants, pkg install for BSD variants, so on and so on).
 
-Configuring elasticsearch for optimal use is beyond the scope of this document. We are including a Docker compose file that will allow you to run elasticsearch as a collection of container instances [here](). Do note that the docker-compose file will spin off five Docker containers each running elastic with a heap size of 32Gb! They will all run on a single machine as well, meaning that you should plan on this machine having ample memory. If Docker is not applicable to your setup - elasticsearch is happy to run as a basic install as mentioned above. We are including an elasticsearch.yml file to be used for a basic elastic install by way of copying it into /etc/elasticsearch/ (or /usr/local/etc/elasticsearch on FreeBSD, for example).
+Configuring elasticsearch for optimal use is beyond the scope of this document. We are including a Docker compose file that will allow you to run elasticsearch as a collection of container instances [here](https://github.com/databio/episb-provider/tree/master/episb-provider/elastic). Do note that the docker-compose file will spin off five Docker containers each running elastic with a heap size of 32Gb! They will all run on a single machine as well, meaning that you should plan on this machine having ample memory. If Docker is not applicable to your setup - elasticsearch is happy to run as a basic install as mentioned above. We are including an elasticsearch.yml file to be used for a basic elastic install by way of copying it into /etc/elasticsearch/ (or /usr/local/etc/elasticsearch on FreeBSD, for example).
 
 In order to check what is stored/indexed by Elasticsearch, a developer concole called [Kibana](https://www.elastic.co/products/kibana) is used (however, Elastic supports access via the http protocol so a basic "curl" will do as well!). It is beyond the scope of this document to provide instruction on Elasticsearch query DSL/APIs or Kibana.
 
