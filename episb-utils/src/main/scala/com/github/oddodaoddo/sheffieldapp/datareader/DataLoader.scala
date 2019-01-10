@@ -21,7 +21,7 @@ import org.json4s.JsonDSL._
 class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends LazyLogging {
 
   val constructBaseUrl:String = {
-    private val conf = ConfigFactory.load()
+    val conf = ConfigFactory.load()
     val providerUrl = conf.getString("episb-utils.provider-url")
     val providerUrlBase = conf.getString("episb-utils.provider-url-base")
     val providerPort = conf.getString("episb-utils.episb-provider-port")
