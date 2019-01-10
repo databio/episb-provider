@@ -131,7 +131,7 @@ class AnnotationLoader(segName:String,
 
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"http://localhost:8080/segments/get/BySegmentationName/${segName}"
+  val url = s"http://localhost:8080/episb-rest-server/segments/get/BySegmentationName/${segName}"
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
   val elasticHits:Either[String,Hits] = {
@@ -202,7 +202,7 @@ class AnnotationLoader(segName:String,
       // now create the actual POST request
       // should be equivalent to: 
       // curl http://localhost:8080/experiments/add/preformatted/testexperiment/testsegmentation --data-binary @/tmp/multipart-message.data -X POST -i -H "Content-Type: multipart/form-data; boundary=a93f5485f279c0"
-      val formUrl = s"http://localhost:8080/experiments/add/preformatted/${expName}/${segName}"
+      val formUrl = s"http://localhost:8080/episb-rest-server/experiments/add/preformatted/${expName}/${segName}"
 
       val fileInByteArrayForm:Array[Byte] = outputStr.map(ch=>ch.toByte).toArray
       // now submit the form as a POST request to the REST API server
@@ -231,7 +231,7 @@ class AnnotationLoader(segName:String,
                                annValMin.toString,
                                annValMax.toString)
 
-      val diUrl = s"http://localhost:8080/segmentations/update"
+      val diUrl = s"http://localhost:8080/episb-rest-server/segmentations/update"
       println(Http(diUrl).postData(di.toJsonLD).header("content-type", "application/json").
         option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString)
     }
