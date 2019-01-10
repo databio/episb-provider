@@ -18,8 +18,7 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 
-class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends LazyLogging {
-
+protected object ConfigReader {
   val constructBaseUrl:String = {
     val conf = ConfigFactory.load()
     val providerUrl = conf.getString("episb-utils.provider-url")
@@ -28,6 +27,9 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
     val finalUrl = "http://"+providerUrl+":"+providerPort+"/"+providerUrlBase
     if (finalUrl.endsWith("/")) finalUrl.init else finalUrl
   }
+}
+
+class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends LazyLogging {
 
   logger.info(s"(LOLACoreConverter): pathsToLoad=${pathsToLoad}")
 
@@ -137,14 +139,14 @@ class AnnotationLoader(segName:String,
 
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"${constructBaseUrl}/segments/get/BySegmentationName/${segName}"
+  val url = s"${ConfigReader.constructBaseUrl}/segments/get/BySegmentationName/${segName}"
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
-  val elasticHits:Either[String,Hits] = {
+  val elasticHits:Either[String,HitsSegment] = {
     try {
       val j = parse(Source.fromURL(url).mkString)
       // get the actual list of hits from elasticsearch
-      Right((j \ "hits").extract[Hits])
+      Right((j \ "hits").extract[HitsSegment])
     } catch {
       case e:Exception => Left(e.getMessage)
     }
@@ -208,7 +210,7 @@ class AnnotationLoader(segName:String,
       // now create the actual POST request
       // should be equivalent to: 
       // curl http://localhost:8080/experiments/add/preformatted/testexperiment/testsegmentation --data-binary @/tmp/multipart-message.data -X POST -i -H "Content-Type: multipart/form-data; boundary=a93f5485f279c0"
-      val formUrl = s"${constructBaseUrl}/experiments/add/preformatted/${expName}/${segName}"
+      val formUrl = s"${ConfigReader.constructBaseUrl}/experiments/add/preformatted/${expName}/${segName}"
 
       val fileInByteArrayForm:Array[Byte] = outputStr.map(ch=>ch.toByte).toArray
       // now submit the form as a POST request to the REST API server
@@ -237,7 +239,7 @@ class AnnotationLoader(segName:String,
                                annValMin.toString,
                                annValMax.toString)
 
-      val diUrl = s"${constructBaseUrl/segmentations/update}"
+      val diUrl = s"${ConfigReader.constructBaseUrl}/segmentations/update}"
       println(Http(diUrl).postData(di.toJsonLD).header("content-type", "application/json").
         option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString)
     }

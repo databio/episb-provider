@@ -87,10 +87,10 @@ class episbRestServlet extends ScalatraServlet
 
       // get the compressed segmentation out of a normal segmentation
       // FIXME: assumes segments exist (for now)
-      val hs:Option[Hits] = try {
+      val hs:Option[HitsSegment] = try {
         val j = parse(response.toString)
         // get the segmentation from the response
-        val h = (j \ "hits").extract[Hits]
+        val h = (j \ "hits").extract[HitsSegment]
         // get the compressed segmentation now
         Some(h)
       } catch {
