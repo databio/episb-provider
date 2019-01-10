@@ -64,6 +64,10 @@ case class JsonSuccess(result:List[JSONLDable]) {
   }
 }
 
+// these are hits from elastic search
+case class Hit(_index:String,_type:String,_id:String,_score:Int,_source:Segment)
+case class Hits(total:Int,max_score:Int,hits:List[Hit])
+
 class episbRestServlet extends ScalatraServlet 
     with ElasticConnector 
     with FileUploadSupport
@@ -79,6 +83,7 @@ class episbRestServlet extends ScalatraServlet
   
   // first API point: get segments for a range of start/end
   get("/get/fromSegment/:start/:end") {
+
     // get the parameters to the query
     val segStart:Int = params("start").toInt
     val segEnd:Int = params("end").toInt
@@ -86,11 +91,11 @@ class episbRestServlet extends ScalatraServlet
     if (segStart>segEnd)
       JsonError(s"segStart(${segStart}) > segEnd(${segEnd})").toString
     else {
-      val range1 = new RangeQueryBuilder("segmentList.segStart").gte(segStart).lte(segEnd)
-      val range2 = new RangeQueryBuilder("segmentList.segEnd").gte(segStart).lte(segEnd)
+      val range1 = new RangeQueryBuilder("segStart").gte(segStart).lte(segEnd)
+      val range2 = new RangeQueryBuilder("segEnd").gte(segStart).lte(segEnd)
 
       // first we need to get all the segments IDs that match the start/end range
-      val response: SearchResponse = esclient.prepareSearch("segmentations").
+      val response: SearchResponse = esclient.prepareSearch("regions").
         setQuery(range1).
         setPostFilter(range2).
         setSize(100).
@@ -98,22 +103,20 @@ class episbRestServlet extends ScalatraServlet
 
       // get the compressed segmentation out of a normal segmentation
       // FIXME: assumes segments exist (for now)
-      val cs:Option[CompressedSegmentation] = try {
+      val hs:Option[Hits] = try {
         val j = parse(response.toString)
         // get the segmentation from the response
-        val segm = (j \\ "_source").extract[Segmentation]
+        val h = (j \ "hits").extract[Hits]
         // get the compressed segmentation now
-        Some(CompressedSegmentation(segm.segmentationName, segm.segmentList.map(x => x.toString).mkString("!")))
+        Some(h)
       } catch {
         case e:Exception => None
       }
 
-      if (cs.isDefined) {
+      if (hs.isDefined) {
         // we have a compressed segmentation to work with
-        val sm = new SegmentMatcher(cs.get)
-        // get all the segment IDs that matched the filter query
-        val segIDlst:List[Segment] = sm.filterBySegmentRange(segStart, segEnd)
-        JsonSuccess(segIDlst)
+        val segments:List[Segment] = hs.get.hits.map(_._source)
+        JsonSuccess(segments)
       } else 
           JsonError("No segments found with that range")
     }
@@ -169,7 +172,7 @@ class episbRestServlet extends ScalatraServlet
         qb.must(startQuery).must(endQuery).must(chrQuery)
 
         // prepare an elastic query
-        val response: SearchResponse = esclient.prepareSearch("segments").
+        val response: SearchResponse = esclient.prepareSearch("regions").
           setQuery(qb).setSize(1).get
 
         response.toString
@@ -183,13 +186,26 @@ class episbRestServlet extends ScalatraServlet
   // the returned result will be sorted by "chr" field
   get("/segmentations/get/ByNameWithSegments/:segName") {
     val segName = params("segName")
-    val compressed = params.getOrElse("compressed", "false").toBoolean
     //val sorted
     try {
       val qb = QueryBuilders.termQuery("segmentationName", segName)
-      val response = esclient.prepareSearch(if (compressed) "compressed_segmentations" else "segmentations").
+      val response = esclient.prepareSearch("segmentations").
         //addSort(SortBuilders.fieldSort("seg))
         setQuery(qb).setSize(1).get
+      response.toString
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
+    }
+  }
+
+  get("/segments/get/BySegmentationName/:segName") {
+    val segName = params.getOrElse("segName", "defaultSegmentation")
+
+    try {
+      val qb = QueryBuilders.regexpQuery("segID", segName+".*")
+      val response = esclient.prepareSearch("regions").
+        setQuery(qb).setSize(10000).get
+
       response.toString
     } catch {
       case e:Exception => JsonError(e.getMessage)

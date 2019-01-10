@@ -43,9 +43,9 @@ object ProcessSegmentationNonHeadered extends LazyLogging {
   def main(args:Array[String]): Unit = {
     val conf = new Conf(args)
     val writer = conf.writer()
-    val (ww, wwc):(JSONWriter,JSONWriter) = if (writer == "elastic") {
+    val (ww, wws):(JSONWriter,JSONWriter) = if (writer == "elastic") {
       (new ElasticSearchWriter("segmentations", "segmentation"),
-       new ElasticSearchWriter("compressed_segmentations", "segmentation"))
+       new ElasticSearchWriter("regions", "region"))
     } else
       (new LocalFileWriter(writer), new LocalFileWriter(writer))
 
@@ -53,7 +53,7 @@ object ProcessSegmentationNonHeadered extends LazyLogging {
       conf.segname(),
       conf.expname(),
       new LocalDiskFile(conf.path()),
-      ww, wwc,
+      ww, wws,
       if (conf.skipheader.toOption.isDefined) conf.skipheader() else false)
   }
 }

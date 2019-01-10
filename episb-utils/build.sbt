@@ -1,6 +1,6 @@
 organization := "com.oddodaoddo.github"
 
-name := "episb-bed-JsonLD-converter"
+name := "episb-utils"
 
 version := "0.1.0-SNAPSHOT"
 

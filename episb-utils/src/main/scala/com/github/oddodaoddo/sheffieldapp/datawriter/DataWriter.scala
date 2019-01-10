@@ -48,16 +48,19 @@ class ElasticSearchWriter(index:String, subIndex:String) extends JSONWriter with
   // write any JSONLDable class descendent into elastic
   // return how many items were written
   def write(data:List[JSONLDable]):Either[String,Boolean] = {
-    logger.debug(s"(ElasticSearchWriter::write): data=${data}")
+    logger.info(s"(ElasticSearchWriter::write): data=${data}")
     if (data.isEmpty) Left("Empty list, skipped commital")
     else {
       try {
         val bulkReq = esclient.prepareBulk
-        val zippedData:List[(JSONLDable,Int)] = data.zipWithIndex
-        zippedData.foreach(x => bulkReq.
+        data.foreach(x => bulkReq.
           add(esclient.prepareIndex(index, subIndex).
-            setSource(compact(render(x._1.partialJsonLD)),XContentType.JSON)))
-        bulkReq.get()
+            setSource(compact(render(x.partialJsonLD)),XContentType.JSON)))
+        val bulkRes = bulkReq.get
+        if (bulkRes.hasFailures) 
+          Left("Problem writing data into elastic")
+        else
+          Right(true)
         Right(true)
       } catch {
         case e:Exception => Left(e.getMessage)

@@ -17,6 +17,10 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 
+// these are to be able to translate the hits returned from elastic search
+case class hit(_index:String,_type:String,_id:String,_score:Int,_source:Segment)
+case class Hits(total:Int,max_score:Int,hits:List[hit])
+
 class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends LazyLogging {
 
   logger.info(s"(LOLACoreConverter): pathsToLoad=${pathsToLoad}")
@@ -76,33 +80,36 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
 class SegmentationLoader(
   segName:String,
   expName:String,
-  reader: FileReader,
-  writer:JSONWriter,
-  writerCompressed:JSONWriter,
+  reader:FileReader,
+  segmentationWriter:JSONWriter,
+  segmentsWriter:JSONWriter,
   skipheader:Boolean) extends LazyLogging {
 
   // assumes non-headered file, columns 1, 2 and 3 are segment notation
   // get segmentation
   logger.info(s"(SegmentationLoader::params): segName=s{segName}, expName=s{expName}, skipheader=s{skipheader}")
+
   val lns = if (skipheader) reader.lines.tail else reader.lines
+
   private val segs:List[Segment] = lns.map(_.splits.map(ln => {
     val chr = ln(0).slice(3, ln(0).size)
     val segStart = ln(1).toInt
     val segEnd = ln(2).toInt
     // here we assign a random UUID to the segment so it can be uniquely identified
-    logger.info(s"(SegmentationLoader): creating Segment-> chr=${chr}, start=${segStart}, end=${segEnd}")
-    new Segment(s"${segName}::${randomUUID.toString}",chr,segStart,segEnd)})).flatten
-  private val segmentation:Segmentation = new Segmentation(segName, segs)
+    //logger.info(s"(SegmentationLoader): creating Segment-> chr=${chr}, start=${segStart}, end=${segEnd}")
+    Segment(s"${segName}::${randomUUID}",chr,segStart,segEnd)})).flatten
+
+  private val segmentation:Segmentation = new Segmentation(segName, segs.map(_.segID))
+  // write the segments first into elastic
   // now that we have the segmentation and the annotations, it is time to write them to elastic
-  writer.write(List(segmentation)) match {
+  segmentationWriter.write(List(segmentation)) match {
     case Left(msg) => logger.info(s"(SegmentationLoader::write) unsuccessful. msg=${msg}")
-    case Right(bool) => logger.info(s"(SegmentationLoader::write) write successful")
+    case Right(bool) => logger.info("(SegmentationLoader::write) write successful")
   }
   // do the same with the compressed segment list (for faster searching)
-  writerCompressed.write(List(new CompressedSegmentation(segName, 
-    segmentation.segmentList.map(_.toString).mkString("!")))) match {
-    case Left(msg) => logger.info(s"(SegmentationLoader::write-compressed) unsuccessful. msg=${msg}")
-    case Right(bool) => logger.info(s"(SegmentationLoader::write-compressed) write successful")
+  segmentsWriter.write(segs) match {
+    case Left(msg) => logger.info(s"(SegmentationLoader::write-segments) unsuccessful. msg=${msg}")
+    case Right(bool) => logger.info("(SegmentationLoader::write-segments) write successful")
   }
 }
 
@@ -116,14 +123,7 @@ class AnnotationLoader(segName:String,
   reader:FileReader,
   writeToPath:String,
   col:Int) extends LazyLogging {
-  /* algorithm:
-   *   open file
-   *   for each line
-   *     get chr/start/end
-   *     elastic_api_server->match(chr/start/end)?
-   *       yes? create annotations linking back to segmentation_provider::segmentID
-   *       no? ???
-   */
+
   implicit val formats = DefaultFormats
 
   // create the output file writer
@@ -131,26 +131,28 @@ class AnnotationLoader(segName:String,
 
   // invoke REST API point here
   // FIXME: no timeout checking, no futures, no error checking
-  val url = s"http://localhost:8080/segmentations/get/ByNameWithSegments/${segName}?compressed=true"
+  val url = s"http://localhost:8080/segments/get/BySegmentationName/${segName}"
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
-  val segmentation:Either[String,CompressedSegmentation] = {
+  val elasticHits:Either[String,Hits] = {
     try {
-      val json = parse(Source.fromURL(url).mkString)
-      Right((json \\ "_source").extract[CompressedSegmentation])
+      val j = parse(Source.fromURL(url).mkString)
+      // get the actual list of hits from elasticsearch
+      Right((j \ "hits").extract[Hits])
     } catch {
       case e:Exception => Left(e.getMessage)
     }
   }
 
-  segmentation match {
-    case Right(s) => {
+  elasticHits match {
+    case Right(h) => {
       // we are in business
       // we have successfully converted json into a Segmentation class
       // instance of which is "s"
       // following function traverses the list of segments for a match
       // FIXME: figure out a faster way to search!!
-      val segmentSearcher:SegmentMatcher = new SegmentMatcher(s)
+      val segments:List[Segment] = h.hits.map(_._source)
+      val segmentSearcher:SegmentMatcher = new SegmentMatcher(segments)
       val anns:List[Annotation] = reader.lines.map(_.splits.map(ln => {
         //logger.info(s"(AnnotationLoader): ln=${ln}")
         val chr = ln(0).slice(3, ln(0).size)
@@ -162,7 +164,7 @@ class AnnotationLoader(segName:String,
         val emptyExp:Experiment = new Experiment(expName, "", "", "", "", "", "", "")
         val emptyStudy:Study = new Study(new Author("","",""),"","","")
 
-        val sp:Option[String] = segmentSearcher.exactMatch(new Segment("",chr,segStart,segEnd))
+        val sp:Option[String] = segmentSearcher.exactMatchNoID(new Segment("",chr,segStart,segEnd))
         if (sp.isDefined)
           // found a segment matching an annotation   
           new Annotation(sp.get,annVal.toString,emptyExp,emptyStudy)
@@ -184,7 +186,11 @@ class AnnotationLoader(segName:String,
         writer.close
       } catch {
         // log error for now
-        case e:Exception => logger.error(s"(AnnotationLoader): failed writing into file. Err: ${e.getMessage}")
+        case e:Exception => {
+          logger.error(s"(AnnotationLoader): failed writing into file. Err: ${e.getMessage}")
+          println(s"Problem writing into file; ${e.getMessage}")
+        }
+
       }
 
       // now call API point to load in experiment into elastic

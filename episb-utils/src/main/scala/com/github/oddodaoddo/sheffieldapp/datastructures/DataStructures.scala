@@ -26,7 +26,7 @@ case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extend
     ("segEnd" -> segEnd)
   }
 
-  override def toString:String = s"${segID}|${segChr}|${segStart}|${segEnd}"
+  //def segmentationName:String = segID.split(":")(0)
 }
 
 case class Annotation(segmentID:String,
@@ -41,49 +41,48 @@ case class Annotation(segmentID:String,
   }
 }
 
-case class Segmentation(segmentationName:String, segmentList:List[Segment]) extends JSONLDable {
+case class Segmentation(segmentationName:String, segmentList:List[String]) extends JSONLDable {
   override def partialJsonLD: JObject = {
     ("segmentationName" -> segmentationName) ~
-    ("segmentList" -> segmentList.map(s => s.partialJsonLD))
+    ("segmentList" -> segmentList)
   }
 }
 
-case class CompressedSegmentation(segmentationName:String, compressedSegments:String) extends JSONLDable {
+case class Author(familyName:String, givenName:String, email:String) extends JSONLDable {
   override def partialJsonLD: JObject = {
-    ("segmentationName" -> segmentationName) ~
-    ("compressedSegments" -> compressedSegments)
-  }
-}
-
-case class Author(fname:String, lname:String, email:String) extends JSONLDable {
-  override def partialJsonLD: JObject = {
-    ("familyName" -> fname) ~
-    ("givenName" -> lname) ~
+    ("familyName" -> familyName) ~
+    ("givenName" -> givenName) ~
     ("email" -> email)
   }
 }
 
-case class Study(author:Author, manuscript:String, description:String, date:String)
+case class Study(studyAuthor:Author, studyManuscript:String, studyDescription:String, studyDate:String)
   extends JSONLDable {
   override def partialJsonLD: JObject = {
-      ("studyAuthor" -> author.partialJsonLD) ~
-      ("studyManuscript" -> manuscript) ~
-      ("studyDescription" -> description) ~
-      ("studyDate" -> date)
+      ("studyAuthor" -> studyAuthor.partialJsonLD) ~
+      ("studyManuscript" -> studyManuscript) ~
+      ("studyDescription" -> studyDescription) ~
+      ("studyDate" -> studyDate)
   }
 }
 
-case class Experiment(name:String, protocol:String,cellType:String,species:String,
-                      tissue:String,antibody:String,treatment:String,description:String) extends JSONLDable {
+case class Experiment(experimentName:String,
+                      experimentProtocol:String,
+                      experimentCellType:String,
+                      experimentSpecies:String,
+                      experimentTissue:String,
+                      experimentAntibody:String,
+                      experimentTreatment:String,
+                      experimentDescription:String) extends JSONLDable {
   override def partialJsonLD: JObject = {
-      ("experimentName" -> name) ~
-      ("experimentProtocol" -> protocol) ~
-      ("experimentCellType" -> cellType) ~
-      ("experimentSpecies" -> species) ~
-      ("experimentTissue" -> tissue) ~
-      ("experimentAntibody" -> antibody) ~
-      ("experimentTreatment" -> treatment) ~
-      ("experimentDescription" -> description)
+      ("experimentName" -> experimentName) ~
+      ("experimentProtocol" -> experimentProtocol) ~
+      ("experimentCellType" -> experimentCellType) ~
+      ("experimentSpecies" -> experimentSpecies) ~
+      ("experimentTissue" -> experimentTissue) ~
+      ("experimentAntibody" -> experimentAntibody) ~
+      ("experimentTreatment" -> experimentTreatment) ~
+      ("experimentDescription" -> experimentDescription)
   }
 }
 
@@ -108,4 +107,3 @@ case class DesignInterface(providerName:String,
     ("annotationRangeEnd" -> annotationRangeEnd)
   }
 }
-
