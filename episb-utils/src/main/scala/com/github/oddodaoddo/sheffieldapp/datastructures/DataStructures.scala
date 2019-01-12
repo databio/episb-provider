@@ -23,6 +23,8 @@ trait JSONLDable extends java.io.Serializable {
 // to perform the operation, the quality score of the search, so on and so on
 case class hitSegment(_index:String,_type:String,_id:String,_score:Int,_source:Segment)
 case class HitsSegment(total:Int,max_score:Int,hits:List[hitSegment])
+case class hitDesignInterface(_index:String,_type:String,_id:String,_score:Int,_source:DesignInterface)
+case class HitsDesignInterface(total:Int,max_score:Int,hits:List[hitDesignInterface])
 
 case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extends JSONLDable {
   override def partialJsonLD: JObject = {

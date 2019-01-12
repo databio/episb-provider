@@ -48,10 +48,6 @@ case class JsonSuccess(result:List[JSONLDable]) {
   }
 }
 
-// these are hits from elastic search
-case class hitDesignInterface(_index:String,_type:String,_id:String,_score:Int,_source:DesignInterface)
-case class HitsDesignInterface(total:Int,max_score:Int,hits:List[hitDesignInterface])
-
 class episbRestServlet extends ScalatraServlet 
     with ElasticConnector 
     with FileUploadSupport
@@ -146,30 +142,25 @@ class episbRestServlet extends ScalatraServlet
   }
 */
   // get the exactly matching segment from segments index
-  get("/segments/match/exact/:chr/:start/:end") {
-    val segStart:Int = params("start").toInt
-    val segEnd:Int = params("end").toInt
-    val chr:String = params("chr")
+  // FIXME: change analyzers on regions index so that we can match
+  //        strings properly!
+  get("/segments/find/BySegmentID/:segmentID") {
+    val segID:String = params("segID")
     
-    if (segStart>segEnd)
-      JsonError(s"segStart(${segStart}) > segEnd(${segEnd})").toString
-    else {
-      try {
-        val startQuery = QueryBuilders.termQuery("segStart", segStart)
-        val endQuery = QueryBuilders.termQuery("segEnd", segEnd)
-        val chrQuery = QueryBuilders.termQuery("segChr", chr)
+    try {
+      val startQuery = QueryBuilders.termQuery("segID", segID)
+    
+      val qb = QueryBuilders.termQuery("segID", segID)
 
-        val qb = QueryBuilders.boolQuery
-        qb.must(startQuery).must(endQuery).must(chrQuery)
+      // prepare an elastic query
+      val response: SearchResponse = esclient.prepareSearch("regions").
+        setQuery(qb).setSize(1).get
 
-        // prepare an elastic query
-        val response: SearchResponse = esclient.prepareSearch("regions").
-          setQuery(qb).setSize(1).get
+      println(response.toString)
 
-        response.toString
-      } catch {
-        case e:Exception => JsonError(e.getMessage)
-      }
+      response.toString
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
     }
   }
 
@@ -204,7 +195,23 @@ class episbRestServlet extends ScalatraServlet
       val response = esclient.prepareSearch("regions").
         setQuery(qb).setSize(10000).get
 
-      response.toString
+      val hs:Option[HitsSegment] = try {
+        val j = parse(response.toString)
+        // get the segmentation from the response
+        val h = (j \ "hits").extract[HitsSegment]
+        // get the compressed segmentation now
+        Some(h)
+      } catch {
+        case e:Exception => None
+      }
+
+      if (hs.isDefined) {
+        // we have a compressed segmentation to work with
+        val segments:List[Segment] = hs.get.hits.map(_._source)
+        JsonSuccess(segments)
+      } else 
+          JsonError("No segments found with that range")
+
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }

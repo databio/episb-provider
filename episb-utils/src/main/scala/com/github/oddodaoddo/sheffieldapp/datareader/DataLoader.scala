@@ -142,24 +142,24 @@ class AnnotationLoader(segName:String,
   val url = s"${ConfigReader.constructBaseUrl}/segments/get/BySegmentationName/${segName}"
   // we get back a segmentation in json or JsonError object
   // FIXME: Make sure we react accordingly if it is JsonError indeed
-  val elasticHits:Either[String,HitsSegment] = {
+  val elasticHits:Either[String,List[Segment]] = {
     try {
       val j = parse(Source.fromURL(url).mkString)
       // get the actual list of hits from elasticsearch
-      Right((j \ "hits").extract[HitsSegment])
+      Right((j \ "result").extract[List[Segment]])
     } catch {
       case e:Exception => Left(e.getMessage)
     }
   }
 
   elasticHits match {
-    case Right(h) => {
+    case Right(segments) => {
       // we are in business
       // we have successfully converted json into a Segmentation class
       // instance of which is "s"
       // following function traverses the list of segments for a match
       // FIXME: figure out a faster way to search!!
-      val segments:List[Segment] = h.hits.map(_._source)
+      //val segments:List[Segment] = h.hits.map(_._source)
       val segmentSearcher:SegmentMatcher = new SegmentMatcher(segments)
       val anns:List[Annotation] = reader.lines.map(_.splits.map(ln => {
         //logger.info(s"(AnnotationLoader): ln=${ln}")
