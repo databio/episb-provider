@@ -144,21 +144,40 @@ class episbRestServlet extends ScalatraServlet
   // get the exactly matching segment from segments index
   // FIXME: change analyzers on regions index so that we can match
   //        strings properly!
-  get("/segments/find/BySegmentID/:segmentID") {
+  get("/segments/find/BySegmentID/:segID") {
     val segID:String = params("segID")
-    
     try {
-      val startQuery = QueryBuilders.termQuery("segID", segID)
-    
-      val qb = QueryBuilders.termQuery("segID", segID)
+      // we are using a regex query on the first part of the UUID below
+      // this is because elastic cannot search on terms that have special characters in them
+      // at least not without special analyzers (which we can add later)
+      val qb = QueryBuilders.regexpQuery("segID", segID.split(":")(2).split("-")(0))
 
       // prepare an elastic query
       val response: SearchResponse = esclient.prepareSearch("regions").
         setQuery(qb).setSize(1).get
 
-      println(response.toString)
+      // we may get more than one hit so we have to search manually ourselves
+      // fortunately the search space will be very small
+      val hs:Option[HitsSegment] = try {
+        val j = parse(response.toString)
+        // get the segmentation from the response
+        val h = (j \ "hits").extract[HitsSegment]
+        // get the compressed segmentation now
+        Some(h)
+      } catch {
+        case e:Exception => None
+      }
 
-      response.toString
+      if (hs.isDefined) {
+        // we have a compressed segmentation to work with
+        val segments:List[Segment] = hs.get.hits.map(_._source)
+        val segPos = segments.indexWhere(s => s.segID==segID)
+        if (segPos != -1)
+          JsonSuccess(List(segments(segPos)))
+        else
+          JsonError(s"No segments found with ID ${segID}")
+      } else 
+          JsonError(s"No segments found with ID ${segID}")
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
