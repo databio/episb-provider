@@ -25,6 +25,8 @@ case class hitSegment(_index:String,_type:String,_id:String,_score:Int,_source:S
 case class HitsSegment(total:Int,max_score:Int,hits:List[hitSegment])
 case class hitDesignInterface(_index:String,_type:String,_id:String,_score:Int,_source:DesignInterface)
 case class HitsDesignInterface(total:Int,max_score:Int,hits:List[hitDesignInterface])
+case class hitAnnotation(_index:String,_type:String,_id:String,_score:Int,_source:Annotation)
+case class HitsAnnotation(total:Int,max_score:Int,hits:List[hitAnnotation])
 
 case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extends JSONLDable {
   override def partialJsonLD: JObject = {

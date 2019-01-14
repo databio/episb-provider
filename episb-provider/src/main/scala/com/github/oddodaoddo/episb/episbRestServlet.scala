@@ -141,6 +141,7 @@ class episbRestServlet extends ScalatraServlet
     }
   }
 */
+
   // get the exactly matching segment from segments index
   // FIXME: change analyzers on regions index so that we can match
   //        strings properly!
@@ -286,6 +287,42 @@ class episbRestServlet extends ScalatraServlet
       val j = (parse(response.toString) \ "hits").extract[HitsDesignInterface]
       val dis:List[DesignInterface] = j.hits.map(_._source)
       JsonSuccess(dis)
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
+    }
+  }
+
+  // return all annotation values for a particular experiment
+  get("/experiments/get/ByName/:expName") {
+    val expName:String = params("expName").toLowerCase
+    try {
+      // we are using a regex query on the first part of the UUID below
+      // this is because elastic cannot search on terms that have special characters in them
+      // at least not without special analyzers (which we can add later)
+      val qb = QueryBuilders.regexpQuery("experiment.experimentName", expName)
+
+      // prepare an elastic query
+      val response: SearchResponse = esclient.prepareSearch("annotations").
+        setQuery(qb).setSize(10000).get
+
+      // we may get more than one hit so we have to search manually ourselves
+      // fortunately the search space will be very small
+      val hs:Option[HitsAnnotation] = try {
+        val j = parse(response.toString)
+        // get the segmentation from the response
+        val h = (j \ "hits").extract[HitsAnnotation]
+        // get the compressed segmentation now
+        Some(h)
+      } catch {
+        case e:Exception => None
+      }
+
+      if (hs.isDefined) {
+        // we have a compressed segmentation to work with
+        val annotations:List[Annotation] = hs.get.hits.map(_._source)
+        JsonSuccess(annotations)
+      } else 
+          JsonError(s"No annotations found belonging to experiment with name ${expName}")
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
