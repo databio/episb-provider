@@ -94,13 +94,11 @@ class episbRestServlet extends ScalatraServlet
         setSize(100).
         get
 
-      // get the compressed segmentation out of a normal segmentation
       // FIXME: assumes segments exist (for now)
       val hs:Option[HitsSegment] = try {
         val j = parse(response.toString)
         // deconstruct the elastcsearch response
         val h = (j \ "hits").extract[HitsSegment]
-        // get the compressed segmentation now
         Some(h)
       } catch {
         case e:Exception => None
@@ -192,14 +190,27 @@ class episbRestServlet extends ScalatraServlet
 
   // get the segmentation with name parameter "segName"
   // FIXME: strip out elasticsearch response
-  get("/segmentations/get/ByNameWithSegments/:segName") {
+  get("/segmentations/get/ByName/:segName") {
     val segName = params("segName")
     //val sorted
     try {
       val qb = QueryBuilders.matchQuery("segmentationName", segName)
       val response = esclient.prepareSearch("segmentations").
         setQuery(qb).setSize(1).get
-      response.toString
+      val hs:Option[HitsSegmentation] = try {
+        val j = parse(response.toString)
+        // get the segmentation from the response
+        val h = (j \ "hits").extract[HitsSegmentation]
+        Some(h)
+      } catch {
+        case e:Exception => None
+      }
+
+      if (hs.isDefined) {
+        val segmentations:List[Segmentation] = hs.get.hits.map(_._source)
+        JsonSuccess(segmentations)
+      } else
+          JsonError(s"No segmentations found with name ${segName}")
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
@@ -335,6 +346,7 @@ class episbRestServlet extends ScalatraServlet
       // we are using a regex query on the first part of the UUID below
       // this is because elastic cannot search on terms that have special characters in them
       // at least not without special analyzers (which we can add later)
+      // (FIXME)
       val qb = QueryBuilders.regexpQuery("segmentID", segName)
 
       // prepare an elastic query
@@ -354,7 +366,6 @@ class episbRestServlet extends ScalatraServlet
       }
 
       if (hs.isDefined) {
-        // we have a compressed segmentation to work with
         val annotations:List[Annotation] = hs.get.hits.map(_._source)
         JsonSuccess(annotations)
       } else 
@@ -362,5 +373,60 @@ class episbRestServlet extends ScalatraServlet
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
+  }
+
+  get("/experiments/get/ByRegionID/:regionID") {
+    val originalParameter = params("regionID")
+
+    // we do some preprocessing on the parameter
+    // so the search is easier
+    val regionID:Option[String] = {
+      // we are going to search on a portion of the region ID
+      // the expectation is to get the parameter as segmentation::uuid
+      // we want to get one portion of the uuid and search on that
+      val r = params("regionID").toLowerCase
+      val rr:String = if (r.contains("::"))
+        r.split("::")(1)
+      else
+        r
+      if (rr.contains("-"))
+        Some(rr.split("-")(0))
+      else
+        None
+    }
+    if (regionID.isDefined) {
+      try {
+        // we are using a regex query on the first part of the UUID below
+        // this is because elastic cannot search on terms that have special characters in them
+        // at least not without special analyzers (which we can add later)
+        val qb = QueryBuilders.regexpQuery("segmentID", regionID.get)
+
+        // prepare an elastic query
+        // we will get multiple replies and because we are using regex
+        // some of them may not actually have the region ID the user wanted
+        // we will have to search those manually
+        val response: SearchResponse = esclient.prepareSearch("annotations").
+          setQuery(qb).setSize(1000).get
+
+        // fortunately the search space will be very small
+        val hs:Option[HitsAnnotation] = try {
+          val j = parse(response.toString)
+          // get the segmentation from the response
+          val h = (j \ "hits").extract[HitsAnnotation]
+          Some(h)
+        } catch {
+          case e:Exception => None
+        }
+
+        if (hs.isDefined) {
+          val annotations:List[Annotation] = hs.get.hits.map(_._source)
+          JsonSuccess(annotations.filter(a => a.segmentID == originalParameter))
+        } else 
+          JsonError(s"No annotations found that have a region ID ${originalParameter}")
+      } catch {
+        case e:Exception => JsonError(e.getMessage)
+      }
+    } else
+        JsonError(s"Invalid parameter ${originalParameter}")
   }
 }
