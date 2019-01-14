@@ -68,7 +68,7 @@ class episbRestServlet extends ScalatraServlet
     val segChr:String = {
       // if chromosome coordinate starts with "chr"
       // remove the "chr" portion
-      val c = params("chr").toLowerCase
+      val c = params("chr").toLowerCase.replace(" ", "")
       if (c.startsWith("chr"))
         c.substring(3,c.length)
       else
