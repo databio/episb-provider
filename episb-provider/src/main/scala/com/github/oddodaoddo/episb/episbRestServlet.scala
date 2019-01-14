@@ -322,17 +322,25 @@ class episbRestServlet extends ScalatraServlet
     }
   }
 
-  /*get("/experiments/get/BySegmentationName/:segName") {
-    val segName:String = params("segName").toLowerCase
+  get("/experiments/get/BySegmentationName/:segName") {
+    val segName:String = {
+      val p = params("segName").toLowerCase
+      if (p.contains("::"))
+        p.split("::")(0)
+      else
+        p
+    }
+
     try {
       // we are using a regex query on the first part of the UUID below
       // this is because elastic cannot search on terms that have special characters in them
       // at least not without special analyzers (which we can add later)
-      val qb = QueryBuilders.regexpQuery("segmentationName", segName.split(":")(0))
+      val qb = QueryBuilders.regexpQuery("segmentID", segName)
 
       // prepare an elastic query
+      // FIXME: another place for scroll API!
       val response: SearchResponse = esclient.prepareSearch("annotations").
-        setQuery(qb).setSize(1).get
+        setQuery(qb).setSize(10000).get
 
       // we may get more than one hit so we have to search manually ourselves
       // fortunately the search space will be very small
@@ -350,9 +358,9 @@ class episbRestServlet extends ScalatraServlet
         val annotations:List[Annotation] = hs.get.hits.map(_._source)
         JsonSuccess(annotations)
       } else 
-          JsonError(s"No annotations found belonging to experiment with name ${expName}")
+          JsonError(s"No annotations found belonging to experiment with segmentation name ${segName}")
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
-  }*/
+  }
 }

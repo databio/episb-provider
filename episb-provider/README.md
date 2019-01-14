@@ -41,46 +41,7 @@ Before we discuss the provided REST API points, see this [document](https://gith
 
 ## REST API POINTS ##
 
-**/segmentations/get/ByNameWithSegments/:segmentationName?compressed=true/false (GET)**
-
-Returns a segmentation from elastic search (a list of segments with their IDs)
-
-**/experiments/add/preformatted/:experimentName/:segmentationName (POST)**
-
-Takes in a file formatted such as: "annotation_value\<tab\>segmentation_name::segment_id"
-
-Right now we are not verifying much. It is the responsibility of the caller to make sure the segmentation exists.
-
-See documentation in [episb-bed-json-provider](https://github.com/databio/episb-provider/tree/master/episb-bed-json-converter) on how to create this file (and the whole process surrounding it). *Nota bene*: the loading of the annotations is automated in the episb-bed-json-converted code, as a side-effect the file is created and can be loaded manually using curl (as below), for testing purposes.
-
-To call the API point, create a following file (e.g. /tmp/multipart-message.data)
-
---a93f5485f279c0
-content-disposition: form-data; name="expfile"; filename="exp.out"
-
-Then 
-
-``
-cat path_to_output_file >> /tmp/multipart-message.data
-``
-
-Then 
-
-``
-echo "--a93f5485f279c0--" >> /tmp/multipart-message.data
-``
-
-Finally, test the API point by doing the following:
-
-``
-curl http://localhost:8080/experiments/add/preformatted/testexperiment/testsegmentation --data-binary @/tmp/multipart-message.data -X POST -i -H "Content-Type: multipart/form-data; boundary=a93f5485f279c0"
-``
-
-If you have the right segmentation name - it will work, no error checking right now.
-
-**/segmentations/update (POST)**
-
-The request body of this API point should contain a design interface describing an experiment served by the server.
+See [here](http://code.databio.org/episb/howto-use-episb-API-calls/) for more in-depth information on how to use the episb-provider programmatically.
 
 ## Future ##
 
