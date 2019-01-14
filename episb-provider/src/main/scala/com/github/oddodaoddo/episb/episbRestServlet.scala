@@ -62,7 +62,7 @@ class episbRestServlet extends ScalatraServlet
   configureMultipartHandling(MultipartConfig(maxFileSize = Some(500*1024*1024)))
   
   // first API point: get segments for a range of start/end
-  get("/get/fromSegment/:chr/:start/:end") {
+  get("/segments/get/fromSegment/:chr/:start/:end") {
 
     // get the parameters to the query
     val segChr:String = {
