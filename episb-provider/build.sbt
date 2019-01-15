@@ -32,5 +32,8 @@ libraryDependencies ++= Seq(
   "org.elasticsearch.client" % "elasticsearch-rest-client" % "6.4.2"
 )
 
+// uncomment following line to bind to a different port (default is 8080)
+// containerPort in Jetty := 8090
+
 enablePlugins(SbtTwirl)
 enablePlugins(ScalatraPlugin)
