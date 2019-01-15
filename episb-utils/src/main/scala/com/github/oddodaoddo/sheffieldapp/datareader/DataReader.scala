@@ -17,7 +17,7 @@ class Line(ln:String) extends LazyLogging {
   val splits:Option[List[String]] =
     delimeters.map(d => if (ln.indexOf(d) != -1) Some(ln.split(d).toList) else None).flatten.headOption
 
-  logger.info(s"ln=${ln}, Line.splits=${splits}")
+  //logger.info(s"ln=${ln}, Line.splits=${splits}")
 
 }
 
@@ -34,7 +34,7 @@ class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with LazyLogging {
     splits.getOrElse(List.empty[String]).map(x => x.toLowerCase).zipWithIndex.toMap
 
   // log things
-  logger.info(s"(class HeaderLine): columnMappings=${columnMappings}")
+  //logger.info(s"(class HeaderLine): columnMappings=${columnMappings}")
 
   // convenience methods
   def apply(k:String) = columnMappings(k)
@@ -54,7 +54,7 @@ trait FileReader extends java.io.Serializable with LazyLogging {
   def read:Option[Iterator[String]]
 
   def fileExists:Boolean
-  def size:Int = if (contents != None) contents.size else 0
+  def size:Int = if (contents != None) contents.get.size else 0
 
   // we only deal in lines and headers, we do not expose contents itself
   // will be either a list of lines or an empty list
@@ -62,17 +62,18 @@ trait FileReader extends java.io.Serializable with LazyLogging {
   // read in lines from a file that could be local or on the net (like a URL or on S3, e.g.)
   protected val contents:Option[List[String]] = read.map(x => x.toList)
 
-  logger.info(s"(FileReader)contents=${contents}")
+  //logger.info(s"(FileReader)contents=${contents}")
 
-  val lines:List[Line] = if (contents.isDefined && contents.get.size > 0) 
-    contents.get.map(new Line(_))
-  else List.empty
+  //val lines:List[Line] = if (contents.isDefined && contents.get.size > 0) 
+    //contents.get.map(new Line(_))
+  val lines:List[Line] = contents.map(_.map(new Line(_))).getOrElse(List.empty[Line])
+  //else List.empty
 
   // convenience method
   def isEmpty:Boolean = contents == None
 
   // log things
-  logger.info(s"(trait FileReader): path=${path}, size=${size})")
+  //logger.info(s"(trait FileReader): path=${path}, size=${size})")
 }
 
 trait DiskFile extends FileReader {
@@ -85,11 +86,12 @@ class LocalDiskFile(override val path:String) extends DiskFile
 // a file with a header line
 abstract class HeaderedFile(override val path:String, kw:List[String], strictMatch:Boolean) extends FileReader {
   // will be either a list of lines or an empty list
-  override val lines:List[Line] = if (contents.isDefined && contents.get.size > 1)
-    contents.get.tail.map(new Line(_)) 
-  else List.empty
+  //override val lines:List[Line] = if (contents.isDefined && contents.get.size > 1)
+  //  contents.get.tail.map(new Line(_)) 
+  //else List.empty
+  override val lines:List[Line] = contents.map(_.tail.map(new Line(_))).getOrElse(List.empty[Line])
 
-  logger.info(s"HeaderedFile):lines=${lines}")
+  //logger.info(s"HeaderedFile):lines=${lines}")
 
   val header:Option[HeaderLine] = if (contents.isDefined && contents.get.size > 1) {
     val hl = new HeaderLine(contents.get.head, kw)
@@ -100,7 +102,7 @@ abstract class HeaderedFile(override val path:String, kw:List[String], strictMat
   } else
       None
 
-  logger.info(s"(class HeaderedFile): header=${header}")
+  //logger.info(s"(class HeaderedFile): header=${header}")
 }
 
 // representation of an index.txt file from LOLACore, local to the file system
@@ -114,7 +116,7 @@ class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean)
       (ln.splits.get.size == (header.get.size+1) || header.get("filename") <= ln.splits.get.size)).
     map(_.splits.get(header.get("filename")))
 
-  logger.info(s"(class LOLACoreIndexFile): fileList=${fileList}")
+  //logger.info(s"(class LOLACoreIndexFile): fileList=${fileList}")
 
   // create all the Experiment objects from an index file
   // they are indexed by filename (usually a bed file filename)
@@ -153,7 +155,7 @@ class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean)
     val kwval:Map[String,String] = kw.map(k => 
       if (h.contains(k)) (k -> ln.apply(h(k))) else (k -> "")).toMap
 
-    logger.info(s"(LOLACoreCollectionFile):kwval=${kwval}")
+    //logger.info(s"(LOLACoreCollectionFile):kwval=${kwval}")
 
     if (kwval.isEmpty)
       Study(Author("Default", "Author", "info@episb.org"),"","","")

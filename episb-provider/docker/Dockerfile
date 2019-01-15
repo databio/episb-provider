@@ -8,5 +8,5 @@ ADD repo_key /root/.ssh/id_rsa
 RUN chmod 600 /root/.ssh/id_rsa
 RUN git clone git@github.com:databio/episb-provider.git ~/episb-provider
 RUN rm -rf /var/lib/tomcat8/webapps/*
-RUN cd ~/episb-provider/episb-rest-server && sbt package && cp ~/episb-provider/episb-rest-server/target/scala-2.12/episb-rest-server_2.12-0.1.0-SNAPSHOT.war /var/lib/tomcat8/webapps/episb-rest-server.war
+RUN cd ~/episb-provider/episb-provider && sbt package && cp ~/episb-provider/episb-provider/target/scala-2.12/episb-provider_2.12-0.1.0-SNAPSHOT.war /var/lib/tomcat8/webapps/episb-provider.war
 RUN service start tomcat8
