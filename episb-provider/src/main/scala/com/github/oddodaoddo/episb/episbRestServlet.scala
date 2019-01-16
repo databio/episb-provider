@@ -400,6 +400,19 @@ class episbRestServlet extends ScalatraServlet
     }
   }
 
+  get("/experiments/list/full/BySegmentationName/:segName") {
+    val response = esclient.prepareSearch("interfaces").setSize(1000).get
+    val segName:String = params("segName").toLowerCase
+
+    try {
+      val j = (parse(response.toString) \ "hits").extract[HitsDesignInterface]
+      val dis:List[DesignInterface] = j.hits.map(_._source)
+      JsonSuccess(dis.filter(d => d.segmentationName.toLowerCase == segName))
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
+    }
+  }
+
   get("/experiments/get/ByRegionID/:regionID") {
     val originalParameter = params("regionID")
 
