@@ -48,6 +48,18 @@ case class JsonSuccess(result:List[JSONLDable]) {
   }
 }
 
+// FIXME: ugly hack, violates FP principles, get rid of it!
+case class JsonSuccessBasic(result:List[String]) {
+  override def toString:String = {
+    val json = if (result.isEmpty) {
+      (("result" -> "Ok") ~ ("error" -> "None"))
+    } else {
+      (("result" -> result) ~ ("error" -> "None"))
+    }
+    compact(render(json))
+  }
+}
+
 class episbRestServlet extends ScalatraServlet 
     with ElasticConnector 
     with FileUploadSupport
@@ -370,6 +382,19 @@ class episbRestServlet extends ScalatraServlet
         JsonSuccess(annotations)
       } else 
           JsonError(s"No annotations found belonging to experiment with segmentation name ${segName}")
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
+    }
+  }
+
+  get("/experiments/list/BySegmentationName/:segName") {
+    val response = esclient.prepareSearch("interfaces").setSize(1000).get
+    val segName:String = params("segName").toLowerCase
+
+    try {
+      val j = (parse(response.toString) \ "hits").extract[HitsDesignInterface]
+      val dis:List[DesignInterface] = j.hits.map(_._source)
+      JsonSuccessBasic(dis.filter(d => d.segmentationName.toLowerCase == segName).map(_.experimentName))
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
