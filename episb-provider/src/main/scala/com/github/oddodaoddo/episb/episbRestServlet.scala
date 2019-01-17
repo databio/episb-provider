@@ -125,41 +125,6 @@ class episbRestServlet extends ScalatraServlet
     }
   }
 
-/*
-  post("/post/fromSegmentSet") {
-    def queueSearchRequests(s:SearchRequestBuilder, rs:List[RangeQueryBuilder]):SearchRequestBuilder =  {
-      rs.foreach(x => s.setPostFilter(x))
-      s
-    }
-
-    val json = parse(request.body)
-    if (json \ "segmentSet" == JNothing)
-      JsonError("No Segment Set section in request body")
-    else {
-      // get all segStart,segEnd pairs
-      val sset:List[Map[String,BigInt]] = (json \ "segmentSet").values.asInstanceOf[List[Map[String,BigInt]]]
-      // take only the segmentSets that have a segStart/segEnd pair and where segEnd>segStart
-      val filtered_sset:List[Map[String,Int]] = sset.filter(x => x.contains("segStart") && x.contains("segEnd")).
-        filter(x => x("segEnd").intValue > x("segStart").intValue).
-        map(x => Map("segStart" -> x("segStart").intValue, "segEnd"-> x("segEnd").intValue))
-      // prepare the elastic compound query
-      val responses:List[(Int,Int,String)] = filtered_sset.map(x => (x("segStart"),x("segEnd"),{
-        val range1 = new RangeQueryBuilder("Segment.segStart").gte(x("segStart")).lte(x("segEnd"))
-        val range2 = new RangeQueryBuilder("Segment.segEnd").gte(x("segStart")).lte(x("segEnd"))
-      // prepare an elastic query
-      esclient.prepareSearch("annotations").
-        setQuery(range1).
-        setPostFilter(range2).
-        setSize(100).
-        get.toString
-      }))
-      compact(render(responses.map(x => {
-        ("segStart" -> x._1) ~ ("segEnd" -> x._2) ~("response" -> x._3)
-      })))
-    }
-  }
-*/
-
   // get the exactly matching segment from segments index
   // FIXME: change analyzers on regions index so that we can match
   //        strings properly!
@@ -301,6 +266,19 @@ class episbRestServlet extends ScalatraServlet
 
     JsonSuccess
   }
+
+  get("/segmentations/list/all") {
+    val response = esclient.prepareSearch("interfaces").setSize(1000).get
+
+    try {
+      val j = (parse(response.toString) \ "hits").extract[HitsDesignInterface]
+      val dis:List[DesignInterface] = j.hits.map(_._source)
+      JsonSuccessBasic(dis.map(_.segmentationName))
+    } catch {
+      case e:Exception => JsonError(e.getMessage)
+    }
+  }
+
 
   // get all "design interfaces" from the provider
   get("/segmentations/get/all") {      
