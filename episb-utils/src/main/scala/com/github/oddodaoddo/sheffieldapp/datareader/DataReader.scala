@@ -9,9 +9,12 @@ import com.github.oddodaoddo.sheffieldapp.datastructures.{Author, Experiment, St
 
 import scala.io.Source
 
-class Line(ln:String) extends LazyLogging {
+// represents a line from a file
+// if it is a header line, the headerline passed in has to be true
+// if it is, other information becomes available
+case class Line(ln:String, kw:List[String], val headerline:Boolean) extends LazyLogging {
 
-  private val delimeters = List("\t", ",", " ")
+  private def delimeters = List("\t", ",", " ")
   // try to split a line in a file, based on a few delimeters
   // we are converting to a List[String] below because it allows for a clean getOrElse later on in Headerline
   val splits:Option[List[String]] =
@@ -19,9 +22,6 @@ class Line(ln:String) extends LazyLogging {
 
   //logger.info(s"ln=${ln}, Line.splits=${splits}")
 
-}
-
-class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with LazyLogging {
   // get column mappings from a header line
   // column mappings are a hash table mapping a
   // (column name -> position in line)
@@ -30,13 +30,16 @@ class HeaderLine(ln:String, kw:List[String]) extends Line(ln) with LazyLogging {
   // if a list is empty, the map will be empty as well, and it will be correctly typed
 
   // FIXME: Not sure I like the typecast, can we see if we can use the Option as it was indended to be used?
-  private val columnMappings:Map[String,Int] =
-    splits.getOrElse(List.empty[String]).map(x => x.toLowerCase).zipWithIndex.toMap
+  private val columnMappings:Map[String,Int] = 
+    if (headerline)
+      splits.getOrElse(List.empty[String]).map(x => x.toLowerCase).zipWithIndex.toMap
+    else
+      Map.empty[String,Int]
 
   // log things
   //logger.info(s"(class HeaderLine): columnMappings=${columnMappings}")
 
-  // convenience methods
+  // convenience methods for columnMappings
   def apply(k:String) = columnMappings(k)
   def contains(k:String):Boolean = columnMappings.contains(k)
   def size:Int = columnMappings.size
@@ -54,23 +57,23 @@ trait FileReader extends java.io.Serializable with LazyLogging {
   def read:Option[Iterator[String]]
 
   def fileExists:Boolean
-  def size:Int = if (contents != None) contents.get.size else 0
+  val size:Int
 
   // we only deal in lines and headers, we do not expose contents itself
   // will be either a list of lines or an empty list
 
   // read in lines from a file that could be local or on the net (like a URL or on S3, e.g.)
-  protected val contents:Option[List[String]] = read.map(x => x.toList)
+  // to save memory, we are making this a one-time "def" instead of a val
+  // we don't want to keep the "raw" string lines in memory, esp. not for large multi Gb files
+  protected def contents:Option[Vector[String]] = read.map(x => x.toVector)
 
   //logger.info(s"(FileReader)contents=${contents}")
 
-  //val lines:List[Line] = if (contents.isDefined && contents.get.size > 0) 
-    //contents.get.map(new Line(_))
-  val lines:List[Line] = contents.map(_.map(new Line(_))).getOrElse(List.empty[Line])
-  //else List.empty
+  // for now ALL lines (including possible header line are in below list
+  val lines:Vector[Line]
 
   // convenience method
-  def isEmpty:Boolean = contents == None
+  lazy val isEmpty:Boolean = lines == None
 
   // log things
   //logger.info(s"(trait FileReader): path=${path}, size=${size})")
@@ -81,49 +84,60 @@ trait DiskFile extends FileReader {
   def read:Option[Iterator[String]] = if (fileExists) Some(Source.fromFile(path).getLines) else None
 }
 
-class LocalDiskFile(override val path:String) extends DiskFile
+// headered: indicates whether a file is assumed to have a header line
+// kw: is a list of keywords in the header line to use as column names
+// strictMatch: if true, it will fail if header line column names do NOT match kw
+class LocalDiskFile(val path:String, val headered:Boolean, val kw:List[String], val strictMatch:Boolean) extends DiskFile {
+  override lazy val size:Int = lines.size
 
-// a file with a header line
-abstract class HeaderedFile(override val path:String, kw:List[String], strictMatch:Boolean) extends FileReader {
-  // will be either a list of lines or an empty list
-  //override val lines:List[Line] = if (contents.isDefined && contents.get.size > 1)
-  //  contents.get.tail.map(new Line(_)) 
-  //else List.empty
-  override val lines:List[Line] = contents.map(_.tail.map(new Line(_))).getOrElse(List.empty[Line])
+  // die right here if we are constructing this class with contradictory arguments
+  if ( (!headered && !kw.isEmpty) || (!headered && strictMatch) )
+    throw new Exception("(LocalDiskFile): contradicting arguments.")
 
-  //logger.info(s"HeaderedFile):lines=${lines}")
+  // die if a file does not exist
+  if (!fileExists)
+    throw new Exception(s"File with name ${path} does not exist.")
 
-  val header:Option[HeaderLine] = if (contents.isDefined && contents.get.size > 1) {
-    val hl = new HeaderLine(contents.get.head, kw)
-    if ((strictMatch && hl.kwMatch) || (!strictMatch))
-      Some(hl)
-    else
-      None
-  } else
-      None
-
-  //logger.info(s"(class HeaderedFile): header=${header}")
+  // for efficiency, we are 
+  override val lines:Vector[Line] = {
+    val c = contents
+    // did we read any lines and do we have more than one line?
+    if (c.isDefined && c.get.size > 1) {
+      // the header line below will be treated as just another line if headered is set to false
+      val header = Line(c.get.head,kw,headered)
+      if ((strictMatch && header.kwMatch) || (!strictMatch))
+        header +: c.get.tail.map(Line(_,kw,false))
+      else
+        // not really the best FP solution but we do want to quit the program
+        // if keywords do not match header
+        throw new Exception(s"Header line ${c.get.head} does not match keywords ${kw}")
+    } else
+        Vector.empty[Line]
+  }
 }
 
 // representation of an index.txt file from LOLACore, local to the file system
 class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean) 
-    extends HeaderedFile(path, kw, kwMatch) with DiskFile {
+    extends LocalDiskFile(path, true, kw, kwMatch) with DiskFile {
   // get all files listed in index.txt
   // assumes "filename" column
-  val fileList:List[String] = lines.
-    filter(ln => (header.isDefined && header.get.contains("filename")) &&
-      ln.splits.isDefined && 
-      (ln.splits.get.size == (header.get.size+1) || header.get("filename") <= ln.splits.get.size)).
-    map(_.splits.get(header.get("filename")))
+  // assumes header exists
+  val fileList:Vector[String] = {
+    val header = lines.head
+    lines.tail.
+    filter(ln => header.contains("filename") && ln.splits.isDefined && 
+      (ln.splits.get.size == (header.size+1) || header("filename") <= ln.splits.get.size)).
+    map(_.splits.get(header("filename")))
+  }
 
   //logger.info(s"(class LOLACoreIndexFile): fileList=${fileList}")
 
   // create all the Experiment objects from an index file
   // they are indexed by filename (usually a bed file filename)
-  val experiments:Option[Map[String,Experiment]] = {
+  val experiments:Map[String,Experiment] = {
     // create an Experiment object based on index.txt contents, with variable column structure
     // FIXME: de-couple Experiment creation from hard-coded list of fields
-    def populateExperiment(ln:List[String], h:HeaderLine,expname:String):Experiment = {
+    def populateExperiment(ln:List[String], h:Line,expname:String):Experiment = {
       val kwval:Map[String,String] = kw.map(k =>
         if (h.contains(k)) (k -> ln((h(k)))) else (k -> "")).toMap
       Experiment(expname,
@@ -136,24 +150,22 @@ class LOLACoreIndexFile(path:String, kw:List[String], kwMatch:Boolean)
         kwval("description"))
     }
 
-    if (header != None) {
-      val h = header.get
-      Some(lines.filter(ln => ln.splits.isDefined && (ln.splits.get.size != (h.size+1) || ln.splits.size <= h("filename"))).
-        map(ln => ln.splits.get(h("filename")) -> populateExperiment(ln.splits.get,h,ln.splits.get(h("filename")))).toMap)
-    } else
-        None
+    // assumes header exists and is the first line
+    val h = lines.head
+    lines.filter(ln => ln.splits.isDefined && (ln.splits.get.size != (h.size+1) || ln.splits.size <= h("filename"))).
+      map(ln => ln.splits.get(h("filename")) -> populateExperiment(ln.splits.get,h,ln.splits.get(h("filename")))).toMap
   }
 }
 
 // representation of a collection.txt file from LOLACore, local to the file system
 class LOLACoreCollectionFile(path:String, kw:List[String], kwMatch:Boolean) 
-    extends HeaderedFile(path, kw, kwMatch) with DiskFile {
+    extends LocalDiskFile(path, true, kw, kwMatch) with DiskFile {
   // use only the first line of the collection file after the header, ignore the rest
-  val study:Study = if (!lines.isEmpty && lines(0).splits.isDefined && header.isDefined) {
-    val ln = lines(0).splits.get
-    val h = header.get
+  val study:Study = if (!lines.isEmpty && lines.size > 1) {
+    val ln = lines(1).splits.get
+    val header = lines.head
     val kwval:Map[String,String] = kw.map(k => 
-      if (h.contains(k)) (k -> ln.apply(h(k))) else (k -> "")).toMap
+      if (header.contains(k)) (k -> ln.apply(header(k))) else (k -> "")).toMap
 
     //logger.info(s"(LOLACoreCollectionFile):kwval=${kwval}")
 

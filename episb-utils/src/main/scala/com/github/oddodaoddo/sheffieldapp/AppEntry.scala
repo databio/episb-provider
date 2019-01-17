@@ -29,7 +29,9 @@ object ProcessRawLOLAData extends LazyLogging {
   }
 }
 
-object ProcessSegmentationNonHeadered extends LazyLogging {
+// if skipheader is false, the first line of the file will be skipped
+// if it is true, the first line will be assumed to be a header
+object ProcessSegmentation extends LazyLogging {
   class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
     //val probe = opt[Boolean]()
     val segname = opt[String](required=true)
@@ -52,19 +54,22 @@ object ProcessSegmentationNonHeadered extends LazyLogging {
     new SegmentationLoader(
       conf.segname(),
       conf.expname(),
-      new LocalDiskFile(conf.path()),
+      conf.path(),
       ww, wws,
       if (conf.skipheader.toOption.isDefined) conf.skipheader() else false)
   }
 }
 
-object ProcessAnnotationNonHeadered extends LazyLogging {
+// if skipheader is false, the first line of the file will be skipped
+// if it is true, the first line will be assumed to be a header
+object ProcessAnnotation extends LazyLogging {
   class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
     //val probe = opt[Boolean]()
     val segname = opt[String](required=true)
     val expname = opt[String](required=true)
     val readfrom = opt[String](required=true)
     val writeto = opt[String](required=true)
+    val skipheader = opt[Boolean]()
     val column = opt[Int](required=true)
     verify()
   }
@@ -75,8 +80,9 @@ object ProcessAnnotationNonHeadered extends LazyLogging {
     new AnnotationLoader(
       conf.segname(),
       conf.expname(),
-      new LocalDiskFile(conf.readfrom()),
+      conf.readfrom(),
       conf.writeto(),
-      conf.column())
+      conf.column(),
+      if (conf.skipheader.toOption.isDefined) conf.skipheader() else false)
   }
 }

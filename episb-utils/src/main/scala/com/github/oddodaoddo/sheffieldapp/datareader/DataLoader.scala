@@ -64,18 +64,18 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
         logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processing ${bedFileName}")
         val absbedFilePath = sanitizedPath + "regions/" + bedFileName
         logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): absolute bed filename = ${absbedFilePath}")
-        val bedFile = new LocalDiskFile(absbedFilePath)
+        val bedFile = new LocalDiskFile(absbedFilePath, false, List.empty[String], false)
         //println(s"Processing ${absbedFilePath}")
-        val anns: List[Annotation] = bedFile.lines.map(line => 
+        val anns: Vector[Annotation] = bedFile.lines.map(line => 
           line.splits.map(s => {
             // FIXME: here we are making assumptions about positioning of things in a bed file!
             // FIXME: because we are loading data from LOLACore, for now we are assuming
             // that the segmentation is unknown, so "sptag" property of Annotation is simply
             // the name of the experiment
-            val e:Experiment = indexFile.experiments.get(bedFileName)
+            val e:Experiment = indexFile.experiments(bedFileName)
             Annotation(s"LOLACore::${randomUUID}", {
               if (s.size > 3) s(3) else ""}, e, study)})).flatten
-        writer.write(anns) // write to wherever
+        writer.write(anns.toList) // write to wherever
         logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processed ${anns.size} annotations.")
       })
       logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processed ${indexFile.fileList.size} bed files")
@@ -88,18 +88,27 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
 class SegmentationLoader(
   segName:String,
   expName:String,
-  reader:FileReader,
+  pathToRead:String,
   segmentationWriter:JSONWriter,
   segmentsWriter:JSONWriter,
   skipheader:Boolean) extends LazyLogging {
 
   // assumes non-headered file, columns 1, 2 and 3 are segment notation
   // get segmentation
-  logger.info(s"(SegmentationLoader::params): segName=s{segName}, expName=s{expName}, skipheader=s{skipheader}")
+  logger.info(s"(SegmentationLoader::params): segName=${segName}, expName=${expName}, skipheader=${skipheader}")
 
-  val lns = if (skipheader) reader.lines.tail else reader.lines
+  // assume file has a header unless specifically told to skip the first line
+  val lines:Vector[Line] = {
+    if (skipheader) {
+      val rdr = new LocalDiskFile(pathToRead, false, List.empty[String], false)
+      rdr.lines.tail
+    } else {
+      val rdr = new LocalDiskFile(pathToRead, true, List.empty[String], false)
+      rdr.lines
+    }
+  }
 
-  private val segs:List[Segment] = lns.map(_.splits.map(ln => {
+  private val segs:Vector[Segment] = lines.map(_.splits.map(ln => {
     val chr = ln(0).slice(3, ln(0).size)
     val segStart = ln(1).toInt
     val segEnd = ln(2).toInt
@@ -107,7 +116,7 @@ class SegmentationLoader(
     //logger.info(s"(SegmentationLoader): creating Segment-> chr=${chr}, start=${segStart}, end=${segEnd}")
     Segment(s"${segName}::${randomUUID}",chr,segStart,segEnd)})).flatten
 
-  private val segmentation:Segmentation = new Segmentation(segName, segs.map(_.segID))
+  private val segmentation:Segmentation = new Segmentation(segName, segs.toList.map(_.segID))
   // write the segments first into elastic
   // now that we have the segmentation and the annotations, it is time to write them to elastic
   segmentationWriter.write(List(segmentation)) match {
@@ -115,7 +124,7 @@ class SegmentationLoader(
     case Right(bool) => logger.info("(SegmentationLoader::write) write successful")
   }
   // do the same with the compressed segment list (for faster searching)
-  segmentsWriter.write(segs) match {
+  segmentsWriter.write(segs.toList) match {
     case Left(msg) => logger.info(s"(SegmentationLoader::write-segments) unsuccessful. msg=${msg}")
     case Right(bool) => logger.info("(SegmentationLoader::write-segments) write successful")
   }
@@ -128,11 +137,24 @@ class SegmentationLoader(
 // will also produce json design interface and update the list of segmentations in elastic (via API point)
 class AnnotationLoader(segName:String,
   expName:String,
-  reader:FileReader,
+  pathToRead:String,
   writeToPath:String,
-  col:Int) extends LazyLogging {
+  col:Int,
+  skipheader:Boolean) extends LazyLogging {
 
   implicit val formats = DefaultFormats
+
+  // open the reader
+  // assume file has a header unless specifically told to skip the first line
+  val lines:Vector[Line] = {
+    if (skipheader) {
+      val rdr = new LocalDiskFile(pathToRead, false, List.empty[String], false)
+      rdr.lines.tail
+    } else {
+      val rdr = new LocalDiskFile(pathToRead, true, List.empty[String], false)
+      rdr.lines
+    }
+  }
 
   // create the output file writer
   val writer = new FileWriter(writeToPath)
@@ -161,7 +183,7 @@ class AnnotationLoader(segName:String,
       // FIXME: figure out a faster way to search!!
       //val segments:List[Segment] = h.hits.map(_._source)
       val segmentSearcher:SegmentMatcher = new SegmentMatcher(segments)
-      val anns:List[Annotation] = reader.lines.map(_.splits.map(ln => {
+      val anns:Vector[Annotation] = lines.map(_.splits.map(ln => {
         //logger.info(s"(AnnotationLoader): ln=${ln}")
         val chr = ln(0).slice(3, ln(0).size)
         val segStart = ln(1).toInt
