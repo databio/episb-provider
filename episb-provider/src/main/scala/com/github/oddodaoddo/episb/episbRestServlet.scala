@@ -268,12 +268,15 @@ class episbRestServlet extends ScalatraServlet
   }
 
   get("/segmentations/list/all") {
-    val response = esclient.prepareSearch("segmentations").setSize(1000).get
+    val response = esclient.prepareSearch("segmentations").setFetchSource(Array("segmentationName"), Array.empty[String]).setSize(1000).get
 
     try {
-      val j = (parse(response.toString) \ "hits").extract[HitsSegmentation]
-      val dis:List[Segmentation] = j.hits.map(_._source)
-      JsonSuccessBasic(dis.map(_.segmentationName))
+      val j = parse(response.toString)
+      // a dirty way to extract a list of Strings
+      val lst:List[String] = (((j\\"hits")\\"segmentationName") \\ classOf[JString]).toList.distinct.map(_.toString)
+      //val j = (parse(response.toString) \ "hits").extract[HitsSegmentation]
+      //val dis:List[Segmentation] = j.hits.map(_._source)
+      JsonSuccessBasic(lst)
     } catch {
       case e:Exception => JsonError(e.getMessage)
     }
