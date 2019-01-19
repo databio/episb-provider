@@ -8,6 +8,7 @@ import java.nio.file.{Files, Paths}
 import java.util.UUID.randomUUID
 
 import scala.io.Source
+import scala.util.Try
 
 import com.typesafe.scalalogging.LazyLogging
 import com.typesafe.config._
@@ -135,6 +136,7 @@ class SegmentationLoader(
 // write produce file (through "writer") that can be submitted to an API point to load in experiment
 // will load said file using API point
 // will also produce json design interface and update the list of segmentations in elastic (via API point)
+/*
 class AnnotationLoader(segName:String,
   expName:String,
   pathToRead:String,
@@ -268,4 +270,84 @@ class AnnotationLoader(segName:String,
     case Left(msg) =>
       println(s"Could not retrieve segmentation from database. Error: ${msg}")
   }
+}
+*/
+
+// the following class loads a segmentation and then an annotation
+// the file is pre-processed to have a segmentation ID as the first identifier in a line
+class DummyLoader(
+  segName:String,
+  expName:String,
+  pathToRead:String,
+  segmentationWriter:JSONWriter,
+  segmentsWriter:JSONWriter,
+  annotationWriter:JSONWriter,
+  col:Int,
+  skipsegmentation:Boolean,
+  skipheader:Boolean) extends LazyLogging {
+
+  // get the input lines in
+  val lines:Vector[Line] = {
+    val rdr = new LocalDiskFile(pathToRead, false, List.empty[String], false)
+    if (skipheader)
+      rdr.lines.tail
+    else
+      rdr.lines
+  }
+
+  // first load the segmentation, if we were told to
+  // FIXME: below is a bit of a side-effect so not strictly FP
+  val throwaway:Boolean = if (!skipsegmentation) {
+    val segments:List[Segment] = lines.map(_.splits.map(ln => {
+      // create a segment
+      val segID = segName + "::" + ln(0)
+      val chr = ln(1).slice(3, ln(0).size)
+      val segStart = ln(2).toInt
+      val segEnd = ln(3).toInt
+      // here we assign a random UUID to the segment so it can be uniquely identified
+      //logger.info(s"(SegmentationLoader): creating Segment-> chr=${chr}, start=${segStart}, end=${segEnd}")
+      Segment(segID,chr,segStart,segEnd)})).flatten.toList
+    val segmentation:Segmentation = Segmentation(segName, segments.map(_.segID))
+    // write the segmentation to elastic
+    segmentationWriter.write(List(segmentation))
+    // and then the segments
+    segmentsWriter.write(segments)
+    true
+  } else
+      false
+
+  // create Study and Experiment objects with as much information as possible
+  val experiment = Experiment(expName, "", "", "Human", "", "", "", "")
+  val author = Author("Default", "Author", "info@episb.org")
+  val study = Study(author, "Default Manuscript", "", "")
+
+  // now write the annotations/experiment
+  // by the column, one at a time
+  val annotations:Vector[Annotation] = lines.map(_.splits.map(ln => {
+    val segID = ln(0)
+    // see if annotation value is integer or float - we will need this for the exp/segmentation interface
+    val annVal:Option[Float] = {
+      val t1 = Try(ln(0).toInt).toOption
+      // if it is an integer, convert to float
+      if (t1.isDefined)
+        Some(t1.get.toFloat)
+      else
+        // try to see if it is a float
+        Try(ln(0).toFloat).toOption
+    }
+    (segID, annVal)
+  }).filter(_._2.isDefined).map(x => Annotation(x._1, x._2.get.toString, experiment, study))).flatten
+
+  // now write all the annotations
+  annotationWriter.write(annotations.toList)
+
+  val annValMin:Float = annotations.map(ann => ann.annValue.toFloat).min
+  val annValMax:Float = annotations.map(ann => ann.annValue.toFloat).max
+
+  // finally, create experiment/segmentation interface
+  val di = DesignInterface(segName, expName, "", "dummy loaded", "annValue", annValMin.toString, annValMax.toString)
+  // and update elastic
+  val diUrl = s"${ConfigReader.constructBaseUrl}/segmentations/update"
+  println(Http(diUrl).postData(di.toJsonLD).header("content-type", "application/json").
+    option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString)
 }

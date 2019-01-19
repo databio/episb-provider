@@ -62,14 +62,15 @@ object ProcessSegmentation extends LazyLogging {
 
 // if skipheader is false, the first line of the file will be skipped
 // if it is true, the first line will be assumed to be a header
-object ProcessAnnotation extends LazyLogging {
+// assumes commital to elastic
+object DummyLoad extends LazyLogging {
   class Conf(arguments:Seq[String]) extends ScallopConf(arguments) {
     //val probe = opt[Boolean]()
     val segname = opt[String](required=true)
     val expname = opt[String](required=true)
     val readfrom = opt[String](required=true)
-    val writeto = opt[String](required=true)
     val skipheader = opt[Boolean]()
+    val skipsegmentation = opt[Boolean]()
     val column = opt[Int](required=true)
     verify()
   }
@@ -77,12 +78,15 @@ object ProcessAnnotation extends LazyLogging {
   def main(args:Array[String]): Unit = {
     val conf = new Conf(args)
 
-    new AnnotationLoader(
+    new DummyLoader(
       conf.segname(),
       conf.expname(),
       conf.readfrom(),
-      conf.writeto(),
+      new ElasticSearchWriter("segmentations", "segmentation"),
+      new ElasticSearchWriter("regions", "region"),
+      new ElasticSearchWriter("annotations", "annotation"),
       conf.column(),
-      if (conf.skipheader.toOption.isDefined) conf.skipheader() else false)
+      if (conf.skipheader.toOption.isDefined) conf.skipheader() else false,
+      if (conf.skipsegmentation.toOption.isDefined) conf.skipheader() else false)
   }
 }
