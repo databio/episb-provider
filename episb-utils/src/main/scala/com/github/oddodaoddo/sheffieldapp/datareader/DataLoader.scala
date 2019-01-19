@@ -323,20 +323,8 @@ class DummyLoader(
 
   // now write the annotations/experiment
   // by the column, one at a time
-  val annotations:Vector[Annotation] = lines.map(_.splits.map(ln => {
-    val segID = ln(0)
-    // see if annotation value is integer or float - we will need this for the exp/segmentation interface
-    val annVal:Option[Float] = {
-      val t1 = Try(ln(0).toInt).toOption
-      // if it is an integer, convert to float
-      if (t1.isDefined)
-        Some(t1.get.toFloat)
-      else
-        // try to see if it is a float
-        Try(ln(0).toFloat).toOption
-    }
-    (segID, annVal)
-  }).filter(_._2.isDefined).map(x => Annotation(x._1, x._2.get.toString, experiment, study))).flatten
+  val annotations:Vector[Annotation] = lines.map(_.splits.map(ln => (ln(0), Try(ln(0).toFloat).toOption)).
+  filter(_._2.isDefined).map(x => Annotation(x._1, x._2.get.toString, experiment, study))).flatten
 
   // now write all the annotations
   annotationWriter.write(annotations.toList)
