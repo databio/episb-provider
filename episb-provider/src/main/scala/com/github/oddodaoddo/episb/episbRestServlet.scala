@@ -460,7 +460,7 @@ class episbRestServlet extends ScalatraServlet
   }
 
   get("/provider-interface") {
-    val segCount:Long = esclient.admin.indices.prepareStats("segments").get.getTotal.getDocs.getCount
+    val segCount:Long = esclient.admin.indices.prepareStats("regions").get.getTotal.getDocs.getCount
     val annCount:Long = esclient.admin.indices.prepareStats("annotations").get.getTotal.getDocs.getCount
     val segmentationCount:Long = esclient.admin.indices.prepareStats("segmentations").get.getTotal.getDocs.getCount
     val expCount:Long = esclient.admin.indices.prepareStats("interfaces").get.getTotal.getDocs.getCount
