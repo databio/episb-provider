@@ -76,12 +76,12 @@ class episbRestServlet extends ScalatraServlet
   // get all provider-interface info
   // read config file
   private val conf = ConfigFactory.load()
-  private val providerName = conf.getString("episb-provider.providerName")
-  private val providerDescription = conf.getString("episb-provider.providerDescription")
-  private val providerInstitution = conf.getString("episb-provider.providerInstitution")
-  private val providerAdmin = conf.getString("episb-provider.providerAdmin")
-  private val providerAdminContact = conf.getString("episb-provider.providerAdminContact")
-  private val segmentationsProvided = conf.getBoolean("episb-provider.segmentationsProvided")
+  private val providerName = conf.getString("episb-provider.provider-name")
+  private val providerDescription = conf.getString("episb-provider.provider-description")
+  private val providerInstitution = conf.getString("episb-provider.provider-institution")
+  private val providerAdmin = conf.getString("episb-provider.provider-admin")
+  private val providerAdminContact = conf.getString("episb-provider.provider-contact")
+  private val segmentationsProvided = conf.getBoolean("episb-provider.segmentation-provider")
   
   // first API point: get segments for a range of start/end
   get("/segments/get/fromSegment/:chr/:start/:end") {
@@ -464,13 +464,6 @@ class episbRestServlet extends ScalatraServlet
     val annCount:Long = esclient.admin.indices.prepareStats("annotations").get.getTotal.getDocs.getCount
     val segmentationCount:Long = esclient.admin.indices.prepareStats("segmentations").get.getTotal.getDocs.getCount
     val expCount:Long = esclient.admin.indices.prepareStats("interfaces").get.getTotal.getDocs.getCount
-
-    val providerName = conf.getString("episb-provider.provider-name")
-    val providerDescription = conf.getString("episb-provider.provider-description")
-    val providerInstitution = conf.getString("episb-provider.provider-institution")
-    val providerAdmin = conf.getString("episb-provider.provider-admin")
-    val providerAdminContact = conf.getString("episb-provider.provider-contact")
-    val segmentationsProvided = conf.getBoolean("episb-provider.segmentation-provider")
 
     val result = ProviderInterface(providerName,
                            providerDescription,
