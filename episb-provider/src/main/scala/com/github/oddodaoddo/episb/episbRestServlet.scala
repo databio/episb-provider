@@ -465,12 +465,12 @@ class episbRestServlet extends ScalatraServlet
     val segmentationCount:Long = esclient.admin.indices.prepareStats("segmentations").get.getTotal.getDocs.getCount
     val expCount:Long = esclient.admin.indices.prepareStats("interfaces").get.getTotal.getDocs.getCount
 
-    val providerName = conf.getString("episb-provider.providerName")
-    val providerDescription = conf.getString("episb-provider.providerDescription")
-    val providerInstitution = conf.getString("episb-provider.providerInstitution")
-    val providerAdmin = conf.getString("episb-provider.providerAdmin")
-    val providerAdminContact = conf.getString("episb-provider.providerAdminContact")
-    val segmentationsProvided = conf.getBoolean("episb-provider.segmentationsProvided")
+    val providerName = conf.getString("episb-provider.provider-name")
+    val providerDescription = conf.getString("episb-provider.provider-description")
+    val providerInstitution = conf.getString("episb-provider.provider-institution")
+    val providerAdmin = conf.getString("episb-provider.provider-admin")
+    val providerAdminContact = conf.getString("episb-provider.provider-contact")
+    val segmentationsProvided = conf.getBoolean("episb-provider.segmentation-provider")
 
     val result = ProviderInterface(providerName,
                            providerDescription,
