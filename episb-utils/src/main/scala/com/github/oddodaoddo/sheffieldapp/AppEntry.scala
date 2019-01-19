@@ -87,6 +87,6 @@ object DummyLoad extends LazyLogging {
       new ElasticSearchWriter("annotations", "annotation"),
       conf.column(),
       if (conf.skipheader.toOption.isDefined) conf.skipheader() else false,
-      if (conf.skipsegmentation.toOption.isDefined) conf.skipheader() else false)
+      if (conf.skipsegmentation.toOption.isDefined) conf.skipsegmentation() else false)
   }
 }

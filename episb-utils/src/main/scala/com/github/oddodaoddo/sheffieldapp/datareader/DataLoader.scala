@@ -310,8 +310,10 @@ class DummyLoader(
     val segmentation:Segmentation = Segmentation(segName, segments.map(_.segID))
     // write the segmentation to elastic
     segmentationWriter.write(List(segmentation))
+    println("Wrote segmentation to elastic")
     // and then the segments
     segmentsWriter.write(segments)
+    println("Wrote segments to elastic")
     true
   } else
       false
@@ -328,6 +330,7 @@ class DummyLoader(
 
   // now write all the annotations
   annotationWriter.write(annotations.toList)
+  println("Wrote annotations to elastic")
 
   val annValMin:Float = annotations.map(ann => ann.annValue.toFloat).min
   val annValMax:Float = annotations.map(ann => ann.annValue.toFloat).max
@@ -338,4 +341,5 @@ class DummyLoader(
   val diUrl = s"${ConfigReader.constructBaseUrl}/segmentations/update"
   println(Http(diUrl).postData(di.toJsonLD).header("content-type", "application/json").
     option(HttpOptions.connTimeout(10000)).option(HttpOptions.readTimeout(50000)).asString)
+  println("Commited experiment/segmentation tuple to elastic")
 }
