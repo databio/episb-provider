@@ -122,3 +122,28 @@ case class DesignInterface(providerName:String,
     ("annotationRangeEnd" -> annotationRangeEnd)
   }
 }
+
+case class ProviderInterface(providerName:String,
+                           providerDescription:String,
+                           providerInstitution:String,
+                           providerAdmin:String,
+                           providerAdminContact:String,
+                           segmentationsProvided:Boolean,
+                           segmentationsNo:Long,
+                           regionsNo:Long,
+                           annotationsNo:Long,
+                           experimentsNo:Long
+                          ) extends JSONLDable {
+  override def partialJsonLD: JObject = {
+    ("providerName" -> providerName) ~
+    ("providerDescription" -> providerDescription) ~
+    ("providerInstitution" -> providerInstitution) ~
+    ("providerAdmin" -> providerAdmin) ~
+    ("providerAdminContact" -> providerAdminContact) ~
+    ("segmentationsProvided" -> segmentationsProvided) ~
+    ("segmentationsNo" -> segmentationsNo) ~
+    ("regionsNo" -> regionsNo) ~
+    ("annotationsNo" -> annotationsNo) ~
+    ("experimentsNo" -> experimentsNo)
+  }
+}

@@ -72,6 +72,16 @@ class episbRestServlet extends ScalatraServlet
   // set physical limit on file size uploads (500Mb) - arbitrary right now
   // maybe in the future we support .gz to allow a bigger file upload
   configureMultipartHandling(MultipartConfig(maxFileSize = Some(500*1024*1024)))
+
+  // get all provider-interface info
+  // read config file
+  private val conf = ConfigFactory.load()
+  private val providerName = conf.getString("episb-provider.providerName")
+  private val providerDescription = conf.getString("episb-provider.providerDescription")
+  private val providerInstitution = conf.getString("episb-provider.providerInstitution")
+  private val providerAdmin = conf.getString("episb-provider.providerAdmin")
+  private val providerAdminContact = conf.getString("episb-provider.providerAdminContact")
+  private val segmentationsProvided = conf.getBoolean("episb-provider.segmentationsProvided")
   
   // first API point: get segments for a range of start/end
   get("/segments/get/fromSegment/:chr/:start/:end") {
@@ -448,4 +458,32 @@ class episbRestServlet extends ScalatraServlet
     } else
         JsonError(s"Invalid parameter ${originalParameter}")
   }
+
+  get("/provider-interface") {
+    val segCount:Long = esclient.admin.indices.prepareStats("segments").get.getTotal.getDocs.getCount
+    val annCount:Long = esclient.admin.indices.prepareStats("annotations").get.getTotal.getDocs.getCount
+    val segmentationCount:Long = esclient.admin.indices.prepareStats("segmentations").get.getTotal.getDocs.getCount
+    val expCount:Long = esclient.admin.indices.prepareStats("interfaces").get.getTotal.getDocs.getCount
+
+    val providerName = conf.getString("episb-provider.providerName")
+    val providerDescription = conf.getString("episb-provider.providerDescription")
+    val providerInstitution = conf.getString("episb-provider.providerInstitution")
+    val providerAdmin = conf.getString("episb-provider.providerAdmin")
+    val providerAdminContact = conf.getString("episb-provider.providerAdminContact")
+    val segmentationsProvided = conf.getBoolean("episb-provider.segmentationsProvided")
+
+    val result = ProviderInterface(providerName,
+                           providerDescription,
+                           providerInstitution,
+                           providerAdmin,
+                           providerAdminContact,
+                           segmentationsProvided,
+                           segmentationCount,
+                           segCount,
+                           annCount,
+                           expCount)
+
+    JsonSuccess(List(result))
+  }
+
 }
