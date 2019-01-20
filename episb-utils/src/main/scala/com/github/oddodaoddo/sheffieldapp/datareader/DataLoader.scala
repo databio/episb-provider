@@ -25,7 +25,12 @@ protected object ConfigReader {
     val providerUrl = conf.getString("episb-utils.episb-provider-url")
     val providerUrlBase = conf.getString("episb-utils.episb-provider-url-base")
     val providerPort = conf.getString("episb-utils.episb-provider-port")
-    val finalUrl = "http://"+providerUrl+":"+providerPort+"/"+providerUrlBase
+    val finalUrl = "http://" + providerUrl +
+      { if (providerPort != "")
+          ":" + providerPort
+        else ""
+      } + { if (providerUrlBase.startsWith("/")) providerUrlBase else "/"+providerUrlBase }
+    
     if (finalUrl.endsWith("/")) finalUrl.init else finalUrl
   }
 }
