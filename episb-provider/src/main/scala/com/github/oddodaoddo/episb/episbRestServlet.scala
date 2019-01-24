@@ -82,7 +82,17 @@ class episbRestServlet extends ScalatraServlet
   private val providerAdmin = conf.getString("episb-provider.provider-admin")
   private val providerAdminContact = conf.getString("episb-provider.provider-contact")
   private val segmentationsProvided = conf.getBoolean("episb-provider.segmentation-provider")
-  
+ 
+  get("/") {
+    contentType="text/html"
+
+    <html>
+      <head><title>EPISB landing page</title></head>
+      <body>EPISB provider landing page.
+            Try appending /provider-interface to the URL or go to <a href="http://episb.org">EPISB.ORG</a> for more information.
+      </body>
+    </html>
+  }
   // first API point: get segments for a range of start/end
   get("/segments/get/fromSegment/:chr/:start/:end") {
 
