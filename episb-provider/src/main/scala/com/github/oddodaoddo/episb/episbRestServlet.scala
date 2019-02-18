@@ -334,20 +334,34 @@ class episbRestServlet extends ScalatraServlet
         Some(p)
     }
 
-    val opval1:Option[Double] = Some(params.getOrElse("val1", None).toString.toDouble)
-    val opval2:Option[Double] = Some(params.getOrElse("val2", None).toString.toDouble)
+    val opval1:Option[Double] = if (op1.isDefined) 
+      try { 
+        Some(params.getOrElse("val1", "").toString.toDouble)
+      } catch { 
+        case e:Exception => None 
+      } else 
+          None
+    val opval2:Option[Double] = if (op2.isDefined)
+      try {
+        Some(params.getOrElse("val2", "").toString.toDouble)
+      } catch { 
+        case e:Exception => None 
+      } else 
+          None
 
     try {
       if ((op1.isDefined && !opval1.isDefined) || (op2.isDefined && !opval2.isDefined))
         JsonError("Invalid combination of filter operands and filter values")
 
       val response:SearchResponse = if (!op1.isDefined && !op2.isDefined) {
+        println("m1")
         // baskic case where we want ALL annotations from an experiment
         val qb = QueryBuilders.regexpQuery("experiment.experimentName", expName)
         // prepare an elastic query
         // FIXME: limited by scroll size
         esclient.prepareSearch("annotations").setQuery(qb).setSize(10000).get
       } else if (op1.isDefined && op1.get == "eq") {
+        println("m2")
         val expNameQuery = QueryBuilders.matchQuery("experiment.experimentName", expName)
         val eqQuery = QueryBuilders.matchQuery("annValue", opval1.get)
         val totalQuery = QueryBuilders.boolQuery.must(expNameQuery).must(eqQuery)
@@ -355,6 +369,7 @@ class episbRestServlet extends ScalatraServlet
         // first we need to get all the segments IDs that match the start/end range
         esclient.prepareSearch("regions").setQuery(totalQuery).get
       } else {
+        println("m3")
         val range1 = {
           if (op1.isDefined) {
             if (op1.get == "gte")
