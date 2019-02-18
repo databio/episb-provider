@@ -18,7 +18,7 @@ import org.elasticsearch.action.search.{SearchRequestBuilder, SearchResponse, Se
 import org.elasticsearch.search.sort.{SortBuilder, SortBuilders}
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.TransportAddress
-import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders, RangeQueryBuilder, TermQueryBuilder}
+import org.elasticsearch.index.query.{BoolQueryBuilder, MatchQueryBuilder, QueryBuilders, RangeQueryBuilder, TermQueryBuilder}
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
@@ -319,27 +319,89 @@ class episbRestServlet extends ScalatraServlet
   // return all annotation values for a particular experiment
   get("/experiments/get/ByName/:expName") {
     val expName:String = params("expName").toLowerCase
+    val op1:Option[String] = { 
+      val p = params.getOrElse("op1","").toLowerCase
+      if (p != "gte" && p != "lte" && p != "eq")
+        None
+      else
+        Some(p)
+    }
+    val op2:Option[String] = { 
+      val p = params.getOrElse("op2","").toLowerCase
+      if (p != "gte" && p != "lte" && p != "eq")
+        None
+      else
+        Some(p)
+    }
+
+    val opval1:Option[Double] = Some(params.getOrElse("val1", None).toString.toDouble)
+    val opval2:Option[Double] = Some(params.getOrElse("val2", None).toString.toDouble)
+
     try {
-      val qb = QueryBuilders.regexpQuery("experiment.experimentName", expName)
+      if ((op1.isDefined && !opval1.isDefined) || (op2.isDefined && !opval2.isDefined))
+        JsonError("Invalid combination of filter operands and filter values")
 
-      // prepare an elastic query
-      val response: SearchResponse = esclient.prepareSearch("annotations").
-        setQuery(qb).setSize(10000).get
+      val response:SearchResponse = if (!op1.isDefined && !op2.isDefined) {
+        // baskic case where we want ALL annotations from an experiment
+        val qb = QueryBuilders.regexpQuery("experiment.experimentName", expName)
+        // prepare an elastic query
+        // FIXME: limited by scroll size
+        esclient.prepareSearch("annotations").setQuery(qb).setSize(10000).get
+      } else if (op1.isDefined && op1.get == "eq") {
+        val expNameQuery = QueryBuilders.matchQuery("experiment.experimentName", expName)
+        val eqQuery = QueryBuilders.matchQuery("annValue", opval1.get)
+        val totalQuery = QueryBuilders.boolQuery.must(expNameQuery).must(eqQuery)
 
+        // first we need to get all the segments IDs that match the start/end range
+        esclient.prepareSearch("regions").setQuery(totalQuery).get
+      } else {
+        val range1 = {
+          if (op1.isDefined) {
+            if (op1.get == "gte")
+              Some(new RangeQueryBuilder("annValue").gte(opval1.get))
+            else if (op1.get == "lte")
+              Some(new RangeQueryBuilder("annValue").lte(opval1.get))
+            else
+              None
+          } else
+              None
+        }
+        val range2:Option[RangeQueryBuilder] = {
+          if (op2.isDefined) {
+            if (op2.get == "gte")
+              Some(range1.get.gte(opval2.get))
+            else if (op2.get == "lte")
+              Some(range1.get.lte(opval2.get))
+            else 
+              None
+          } else
+              None
+        }
+        val expNameQuery = QueryBuilders.matchQuery("experiment.experimentName", expName)
+        val totalQuery = QueryBuilders.boolQuery.must(expNameQuery)
+        val query = esclient.prepareSearch("annotations").setQuery(totalQuery)
+
+        if (range2.isDefined)
+          query.setPostFilter(range2.get)
+        else
+          query.setPostFilter(range1.get)
+
+        query.setSize(10000).get
+      }
       val hs:Option[HitsAnnotation] = try {
         val j = parse(response.toString)
-        // get the annotations from the response
-        val h = (j \ "hits").extract[HitsAnnotation]
-        Some(h)
-      } catch {
-        case e:Exception => None
-      }
+          // get the annotations from the response
+          val h = (j \ "hits").extract[HitsAnnotation]
+          Some(h)
+        } catch {
+          case e:Exception => None
+        }
 
-      if (hs.isDefined) {
-        // extract the actual list of annotations from the elastic search response
-        val annotations:List[Annotation] = hs.get.hits.map(_._source)
-        JsonSuccess(annotations)
-      } else 
+        if (hs.isDefined) {
+          // extract the actual list of annotations from the elastic search response
+          val annotations:List[Annotation] = hs.get.hits.map(_._source)
+          JsonSuccess(annotations)
+        } else
           JsonError(s"No annotations found belonging to experiment with name ${expName}")
     } catch {
       case e:Exception => JsonError(e.getMessage)
