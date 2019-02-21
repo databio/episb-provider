@@ -45,7 +45,7 @@ case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extend
 }
 
 case class Annotation(segmentID:String,
-                      annValue:String,
+                      annValue:Float,
                       experiment:Experiment,
                       study:Study) extends JSONLDable {
   override def partialJsonLD: JObject = {

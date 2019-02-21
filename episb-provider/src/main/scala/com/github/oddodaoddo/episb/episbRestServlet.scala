@@ -354,14 +354,12 @@ class episbRestServlet extends ScalatraServlet
         JsonError("Invalid combination of filter operands and filter values")
 
       val response:SearchResponse = if (!op1.isDefined && !op2.isDefined) {
-        println("m1")
         // baskic case where we want ALL annotations from an experiment
         val qb = QueryBuilders.regexpQuery("experiment.experimentName", expName)
         // prepare an elastic query
         // FIXME: limited by scroll size
         esclient.prepareSearch("annotations").setQuery(qb).setSize(10000).get
       } else if (op1.isDefined && op1.get == "eq") {
-        println("m2")
         val expNameQuery = QueryBuilders.matchQuery("experiment.experimentName", expName)
         val eqQuery = QueryBuilders.matchQuery("annValue", opval1.get)
         val totalQuery = QueryBuilders.boolQuery.must(expNameQuery).must(eqQuery)
@@ -369,7 +367,6 @@ class episbRestServlet extends ScalatraServlet
         // first we need to get all the segments IDs that match the start/end range
         esclient.prepareSearch("regions").setQuery(totalQuery).get
       } else {
-        println("m3")
         val range1 = {
           if (op1.isDefined) {
             if (op1.get == "gte")
@@ -401,7 +398,7 @@ class episbRestServlet extends ScalatraServlet
         else
           query.setPostFilter(range1.get)
 
-        query.setSize(10000).get
+        query.setSize(1000).get
       }
       val hs:Option[HitsAnnotation] = try {
         val j = parse(response.toString)

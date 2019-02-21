@@ -80,7 +80,7 @@ class LOLACoreConverter(pathsToLoad:Array[String], writer:JSONWriter) extends La
             // the name of the experiment
             val e:Experiment = indexFile.experiments(bedFileName)
             Annotation(s"LOLACore::${randomUUID}", {
-              if (s.size > 3) s(3) else ""}, e, study)})).flatten
+              if (s.size > 3) s(3).toFloat else -1.0.toFloat}, e, study)})).flatten
         writer.write(anns.toList) // write to wherever
         logger.info(s"(LOLACoreConverter::loadLOLACoreExperiment): Processed ${anns.size} annotations.")
       })
@@ -331,7 +331,7 @@ class DummyLoader(
   // now write the annotations/experiment
   // by the column, one at a time
   val annotations:Vector[Annotation] = lines.map(_.splits.map(ln => (ln(0), Try(ln(col).toFloat).toOption)).
-  filter(_._2.isDefined).map(x => Annotation(s"${segName}::${x._1}", x._2.get.toString, experiment, study))).flatten
+  filter(_._2.isDefined).map(x => Annotation(s"${segName}::${x._1}", x._2.get, experiment, study))).flatten
 
   // now write all the annotations
   annotationWriter.write(annotations.toList)
