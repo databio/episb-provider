@@ -267,7 +267,7 @@ class episbRestServlet extends ScalatraServlet
     val lines:List[Array[String]] = input.split("\n").toList.map(_.split("\t"))
     val exp:Experiment = Experiment(expName,"","","","","","","Loaded from preformatted file")
     val study:Study = Study(Author("episb","default","info@episb.org"),"","","")
-    val annotations:List[Annotation] = lines.map(ln => Annotation(ln(1), ln(0), exp, study))
+    val annotations:List[Annotation] = lines.map(ln => Annotation(ln(1), ln(0).toFloat, exp, study))
 
     // write those into elastic (for now)
     // FIXME: no error handling!
