@@ -6,6 +6,10 @@ import org.scalatra.scalate.ScalateSupport
 
 import java.math.BigInteger
 import java.net.InetAddress
+import java.io.File
+import java.io.FileWriter
+import java.io.BufferedWriter
+import java.util.UUID.randomUUID
 
 import com.typesafe.config.ConfigFactory
 
@@ -22,6 +26,7 @@ import org.elasticsearch.index.query.{BoolQueryBuilder, MatchQueryBuilder, Query
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.unit.TimeValue
 
 import com.typesafe.scalalogging.LazyLogging
 
@@ -420,7 +425,16 @@ class episbRestServlet extends ScalatraServlet
     }
   }
 
+  // if ?matrix=true is passed in, get ALL the annotations for a segmentation
+  // and serve as a .gz file
   get("/experiments/get/BySegmentationName/:segName") {
+
+    def sequence[A](a: List[Option[A]]): Option[List[A]] =
+    a match {
+      case Nil => Some(Nil)
+      case h :: t => h flatMap (hh => sequence(t) map (hh :: _))
+    }
+
     val segName:String = {
       val p = params("segName").toLowerCase
       if (p.contains("::"))
@@ -429,36 +443,81 @@ class episbRestServlet extends ScalatraServlet
         p
     }
 
-    try {
-      // we are using a regex query on the first part of the UUID below
-      // this is because elastic cannot search on terms that have special characters in them
-      // at least not without special analyzers (which we can add later)
-      // (FIXME)
-      val qb = QueryBuilders.regexpQuery("segmentID", segName)
-
-      // prepare an elastic query
-      // FIXME: another place for scroll API!
-      val response: SearchResponse = esclient.prepareSearch("annotations").
-        setQuery(qb).setSize(10000).get
-
-      // we may get more than one hit so we have to search manually ourselves
-      // fortunately the search space will be very small
-      val hs:Option[HitsAnnotation] = try {
-        val j = parse(response.toString)
-        // get the segmentation from the response
-        val h = (j \ "hits").extract[HitsAnnotation]
-        Some(h)
-      } catch {
-        case e:Exception => None
-      }
-
-      if (hs.isDefined) {
-        val annotations:List[Annotation] = hs.get.hits.map(_._source)
-        JsonSuccess(annotations)
-      } else 
-          JsonError(s"No annotations found belonging to experiment with segmentation name ${segName}")
+    val matrix:Boolean = try {
+      val p = params.getOrElse("matrix", "false")
+      p.toBoolean
     } catch {
-      case e:Exception => JsonError(e.getMessage)
+      case iae: IllegalArgumentException => false
+    }
+
+    if (matrix) {
+      // non-mutable variables, do/while - yuck!!
+      // create a random temporary file first
+      val fname:String = randomUUID().toString
+      val tempDir:File = new File(System.getProperty("java.io.tmpdir"));
+      val tempFile:File = File.createTempFile(fname, ".tmp", tempDir);
+      val fileWriter:FileWriter = new FileWriter(tempFile, true);
+      val bw:BufferedWriter = new BufferedWriter(fileWriter);
+
+      // here we get to use the elastic scroll API to build the .gz file
+      val qb = QueryBuilders.regexpQuery("segmentID", segName + ".*")
+      var response = esclient.prepareSearch("annotations").
+        setScroll(new TimeValue(60000)).
+        setQuery(qb).
+        setSize(1000).
+        get
+
+      // now we can start building the file on disk
+      do {
+        //response.getHits.getHits.foreach(println(_))
+        // convert each JSON document to a single row of format segmentID:annValue
+        val hass:Option[List[hitAnnotation]] = sequence(response.getHits.getHits.toList.map(h => try {
+          val j = parse(h.toString)
+          // get the segmentation from the response
+          val jj = (j).extract[hitAnnotation]
+          Some(jj)
+        } catch {
+          case e:Exception => None
+        }))
+        val row:Option[List[String]] = hass.map(h => h.map(x => s"${x._source.segmentID},${x._source.annValue}"))
+        row.get.foreach(r => bw.write(r + "\n"))
+        response = esclient.prepareSearchScroll(response.getScrollId).setScroll(new TimeValue(60000)).execute.actionGet
+      } while (response.getHits.getHits.length != 0)
+
+      bw.close
+      tempFile
+    } else {
+      try {
+        // we are using a regex query on the first part of the UUID below
+        // this is because elastic cannot search on terms that have special characters in them
+        // at least not without special analyzers (which we can add later)
+        // (FIXME)
+        val qb = QueryBuilders.regexpQuery("segmentID", segName + ".*")
+
+        // prepare an elastic query
+        // FIXME: another place for scroll API!
+        val response: SearchResponse = esclient.prepareSearch("annotations").
+          setQuery(qb).setSize(10000).get
+
+        // we may get more than one hit so we have to search manually ourselves
+        // fortunately the search space will be very small
+        val hs:Option[HitsAnnotation] = try {
+          val j = parse(response.toString)
+          // get the segmentation from the response
+          val h = (j \ "hits").extract[HitsAnnotation]
+          Some(h)
+        } catch {
+          case e:Exception => None
+        }
+
+        if (hs.isDefined) {
+          val annotations:List[Annotation] = hs.get.hits.map(_._source)
+          JsonSuccess(annotations)
+        } else
+          JsonError(s"No annotations found belonging to experiment with segmentation name ${segName}")
+      } catch {
+        case e:Exception => JsonError(e.getMessage)
+      }
     }
   }
 
