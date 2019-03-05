@@ -322,6 +322,7 @@ class episbRestServlet extends ScalatraServlet
   }
 
   // return all annotation values for a particular experiment
+  // can be passed in parameters like ?op1=gt&val1=0.5
   get("/experiments/get/ByName/:expName") {
     val expName:String = params("expName").toLowerCase
     val op1:Option[String] = { 
