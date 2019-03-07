@@ -98,8 +98,11 @@ class episbRestServlet extends ScalatraServlet
       </body>
     </html>
   }
+
   // first API point: get segments for a range of start/end
+  // allow for ?format=[bed/json] as return type of query
   get("/segments/get/fromSegment/:chr/:start/:end") {
+    val fmt = params.getOrElse("format", "json").toLowerCase
 
     // get the parameters to the query
     val segChr:String = {
@@ -144,7 +147,10 @@ class episbRestServlet extends ScalatraServlet
       if (hs.isDefined) {
         // get the actual list of segments
         val segments:List[Segment] = hs.get.hits.map(_._source)
-        JsonSuccess(segments)
+        if (fmt == "bed")
+          segments.map(_.toBed).mkString("\n")
+        else
+          JsonSuccess(segments)
       } else 
           JsonError("No segments found with that range")
     }
@@ -153,8 +159,11 @@ class episbRestServlet extends ScalatraServlet
   // get the exactly matching segment from segments index
   // FIXME: change analyzers on regions index so that we can match
   //        strings properly!
+  // add ?format=[json/bed] argument
   get("/segments/find/BySegmentID/:segID") {
     val segID:String = params("segID")
+    val fmt = params.getOrElse("format", "json").toLowerCase
+
     try {
       // we are using a regex query on the first part of the UUID below
       // this is because elastic cannot search on terms that have special characters in them
@@ -179,9 +188,12 @@ class episbRestServlet extends ScalatraServlet
       if (hs.isDefined) {
         val segments:List[Segment] = hs.get.hits.map(_._source)
         val segPos = segments.indexWhere(s => s.segID==segID)
-        if (segPos != -1)
-          JsonSuccess(List(segments(segPos)))
-        else
+        if (segPos != -1) {
+          if (fmt == "bed")
+            segments(segPos).toBed
+          else
+            JsonSuccess(List(segments(segPos)))
+        } else
           JsonError(s"No segments found with ID ${segID}")
       } else 
           JsonError(s"No segments found with ID ${segID}")
@@ -218,11 +230,12 @@ class episbRestServlet extends ScalatraServlet
     }
   }
 
-
   // get all segments in a segmentation (with chr/start/stop data included)
   // FIXME: strip out all elasticsearch query data and just return pure segments
+  // add ?format=[bed/json] parameter
   get("/segments/get/BySegmentationName/:segName") {
     val segName = params.getOrElse("segName", "defaultSegmentation").toLowerCase
+    val fmt = params.getOrElse("format", "json").toLowerCase
 
     try {
       val qb = QueryBuilders.regexpQuery("segID", segName+".*")
@@ -241,7 +254,10 @@ class episbRestServlet extends ScalatraServlet
       if (hs.isDefined) {
         // get the list of segments from the actual elasticsearch response
         val segments:List[Segment] = hs.get.hits.map(_._source)
-        JsonSuccess(segments)
+        if (fmt == "bed")
+          segments.map(_.toBed).mkString("\n")
+        else
+          JsonSuccess(segments)
       } else 
           JsonError("No segments found with that range")
 

@@ -16,6 +16,8 @@ trait JSONLDable extends java.io.Serializable {
       partialJsonLD
     compact(render(partialJsonLD))
   }
+
+  def toBed:String = ""
 }
 
 // these are to be able to translate the hits returned from elastic search
@@ -41,6 +43,8 @@ case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extend
     ("segEnd" -> segEnd)
   }
 
+  override def toBed:String = s"${segID}\t${segChr}\t${segStart}\t${segEnd}"
+
   //def segmentationName:String = segID.split(":")(0)
 }
 
@@ -54,6 +58,8 @@ case class Annotation(segmentID:String,
     ("experiment" -> experiment.partialJsonLD) ~
     ("study" -> study.partialJsonLD)
   }
+
+  override def toBed:String = s"${segmentID}\t${annValue}"
 }
 
 case class Segmentation(segmentationName:String, segmentList:List[String]) extends JSONLDable {
@@ -61,6 +67,7 @@ case class Segmentation(segmentationName:String, segmentList:List[String]) exten
     ("segmentationName" -> segmentationName) ~
     ("segmentList" -> segmentList)
   }
+
 }
 
 case class Author(familyName:String, givenName:String, email:String) extends JSONLDable {
