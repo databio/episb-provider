@@ -148,7 +148,7 @@ class episbRestServlet extends ScalatraServlet
         // get the actual list of segments
         val segments:List[Segment] = hs.get.hits.map(_._source)
         if (fmt == "bed")
-          JsonSuccessBasic(segments.map(_.toBed))
+          segments.map(_.toBed).mkString("\n")
         else
           JsonSuccess(segments)
       } else 
@@ -190,7 +190,7 @@ class episbRestServlet extends ScalatraServlet
         val segPos = segments.indexWhere(s => s.segID==segID)
         if (segPos != -1) {
           if (fmt == "bed")
-            JsonSuccessBasic(List(segments(segPos)).map(_.toBed))
+            segments(segPos).toBed
           else
             JsonSuccess(List(segments(segPos)))
         } else
@@ -255,7 +255,7 @@ class episbRestServlet extends ScalatraServlet
         // get the list of segments from the actual elasticsearch response
         val segments:List[Segment] = hs.get.hits.map(_._source)
         if (fmt == "bed")
-          JsonSuccessBasic(segments.map(_.toBed))
+          segments.map(_.toBed).mkString("\n")
         else
           JsonSuccess(segments)
       } else 
