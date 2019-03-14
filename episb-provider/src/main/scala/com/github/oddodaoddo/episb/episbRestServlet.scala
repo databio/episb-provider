@@ -494,7 +494,7 @@ class episbRestServlet extends ScalatraServlet
       // here we get to use the elastic scroll API to build the .gz file
       val qb = QueryBuilders.regexpQuery("segmentID", segName + ".*")
 
-      val scrollSize:Int = (10000 / expNum) * expNum // should be <= 10000
+      val scrollSize:Int = (1000 / expNum) * expNum // should be <= 1000
 
       // set each request to the number of experiments
       // this means we will always get back a full row for the file
@@ -520,8 +520,8 @@ class episbRestServlet extends ScalatraServlet
 
         // process the block of data in expNum blocks
         val slices:List[Vector[(String,String,Float)]] = (for {
-          i <- 0 until scrollSize by expNum
-        }  yield hass.slice(i*expNum, i*expNum+expNum)).toList
+          i <- 0 until scrollSize
+        } yield hass.slice(i*expNum, i*expNum+expNum)).toList.filter(_.size!=0)
 
         val rowAnns:List[(String,Vector[Float])] = slices.map(b => (b.head._1,b.map(_._3)))
         val rows:List[String] = rowAnns.map(r => r._1 + "\t" + r._2.mkString("\t"))
