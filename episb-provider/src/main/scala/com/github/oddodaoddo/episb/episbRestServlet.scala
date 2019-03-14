@@ -503,23 +503,22 @@ class episbRestServlet extends ScalatraServlet
 
       // now we can start building the file on disk
       do {
-        val hass:Vector[(String,Float)] = response.getHits.getHits.toList.map(h => try {
+        val hass:Vector[(String,Float)] = response.getHits.getHits.toVector.map(h => try {
           val j = parse(h.toString)
           // get the segmentation from the response
           val jj = (j).extract[matrixLevel2]
           Some(jj)
         } catch {
           case e:Exception => None
-        }).toVector.map(x => (x.get._source.segmentID, x.get._source.annValue))
+        }).map(x => (x.get._source.segmentID, x.get._source.annValue))
 
         // process the block of data in expNum blocks
-        val slices:Vector[Vector[(String,Float)]] = (for {
+        for {
           i <- 0 until scrollSize / expNum
-        } yield hass.slice(i*expNum, i*expNum+expNum)).toVector
-
-        val rowAnns:Vector[(String,Vector[Float])] = slices.map(b => (b.head._1,b.map(_._2)))
-        val rows:Vector[String] = rowAnns.map(r => r._1 + "\t" + r._2.mkString("\t"))
-        bw.write(rows.mkString("\n"))
+          val slice:Vector[(String,Float)] = hass.slice(i*expNum, i*expNum+expNum)
+          val rowAnns:Vector[(String,Vector[Float])] = slice.map(b => (slice.head._1,slice.map(_._2))) 
+          val rows:Vector[String] = rowAnns.map(r => r._1 + "\t" + r._2.mkString("\t"))
+        } bw.write(rows.mkString("\n"))
 
         // get the new set of rows from elastic
         response = esclient.prepareSearchScroll(response.getScrollId).setScroll(new TimeValue(60000)).execute.actionGet
