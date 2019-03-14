@@ -514,8 +514,8 @@ class episbRestServlet extends ScalatraServlet
 
         // process the block of data in expNum blocks
         val slices:Vector[Vector[(String,Float)]] = (for {
-          i <- 0 until scrollSize
-        } yield hass.slice(i*expNum, i*expNum+expNum)).toVector.filter(_.size!=0)
+          i <- 0 until scrollSize / expNum
+        } yield hass.slice(i*expNum, i*expNum+expNum)).toVector
 
         val rowAnns:Vector[(String,Vector[Float])] = slices.map(b => (b.head._1,b.map(_._2)))
         val rows:Vector[String] = rowAnns.map(r => r._1 + "\t" + r._2.mkString("\t"))
