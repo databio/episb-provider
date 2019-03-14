@@ -23,10 +23,15 @@ import org.elasticsearch.search.sort.{SortBuilder, SortBuilders}
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.TransportAddress
 import org.elasticsearch.index.query.{BoolQueryBuilder, MatchQueryBuilder, QueryBuilders, RangeQueryBuilder, TermQueryBuilder}
+import org.elasticsearch.search.aggregations.AggregationBuilders
+import org.elasticsearch.search.aggregations.bucket.terms.Terms
+import org.elasticsearch.search.aggregations.bucket._
+import org.elasticsearch.search.aggregations.metrics.tophits.TopHits
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.unit.TimeValue
+import org.elasticsearch.search.sort.SortOrder;
 
 import com.typesafe.scalalogging.LazyLogging
 
@@ -468,6 +473,26 @@ class episbRestServlet extends ScalatraServlet
     }
 
     if (matrix) {
+      // get number of experiments per desired segmentation
+      val expNum:Long = {
+        try {
+          val qb = QueryBuilders.regexpQuery("segmentationName", segName + ".*")
+          esclient.prepareSearch("interfaces").setQuery(qb).setSize(0).get.getHits.getTotalHits
+        } catch {
+          case e:Exception => 0
+        }
+      }
+
+      // get number of segments in the segmentation
+      val segNum:Long = {
+        try {
+          val qb = QueryBuilders.regexpQuery("segID", segName + ".*")
+          esclient.prepareSearch("regions").setSize(0).get.getHits.getTotalHits
+        } catch {
+          case e:Exception => 0
+        }
+      }
+
       // non-mutable variables, do/while - yuck!!
       // create a random temporary file first
       val fname:String = randomUUID().toString
@@ -478,31 +503,42 @@ class episbRestServlet extends ScalatraServlet
 
       // here we get to use the elastic scroll API to build the .gz file
       val qb = QueryBuilders.regexpQuery("segmentID", segName + ".*")
+
+      // set each request to the number of experiments
+      // this means we will always get back a full row for the file
       var response = esclient.prepareSearch("annotations").
-        setScroll(new TimeValue(60000)).
         setQuery(qb).
-        setSize(1000).
+        setFetchSource(Array("segmentID", "experiment.experimentName", "annValue"), null).
+        addSort("segmentID.keyword", SortOrder.ASC).
+        addSort("experiment.experimentName.keyword", SortOrder.ASC).
+        setScroll(new TimeValue(60000)).
+        setSize(expNum.toInt).
         get
 
       // now we can start building the file on disk
       do {
         //response.getHits.getHits.foreach(println(_))
         // convert each JSON document to a single row of format segmentID:annValue
-        val hass:Option[List[hitAnnotation]] = sequence(response.getHits.getHits.toList.map(h => try {
+        val hass:Option[List[matrixLevel2]] = sequence(response.getHits.getHits.toList.map(h => try {
           val j = parse(h.toString)
           // get the segmentation from the response
-          val jj = (j).extract[hitAnnotation]
+          val jj = (j).extract[matrixLevel2]
           Some(jj)
         } catch {
           case e:Exception => None
         }))
-        val row:Option[List[String]] = hass.map(h => h.map(x => s"${x._source.segmentID},${x._source.annValue}"))
-        row.get.foreach(r => bw.write(r + "\n"))
+
+        val rowAnns:List[Float] = hass.get.map(x => x._source.annValue)
+        val row = hass.get.head._source.segmentID + rowAnns.mkString("\t")
+        bw.write(row + "\n")
+
+        // get the new set of rows from elastic
         response = esclient.prepareSearchScroll(response.getScrollId).setScroll(new TimeValue(60000)).execute.actionGet
       } while (response.getHits.getHits.length != 0)
 
       bw.close
       tempFile
+
     } else {
       try {
         // we are using a regex query on the first part of the UUID below
