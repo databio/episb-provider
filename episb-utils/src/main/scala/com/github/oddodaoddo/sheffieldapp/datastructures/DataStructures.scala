@@ -43,7 +43,7 @@ case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extend
     ("segEnd" -> segEnd)
   }
 
-  override def toBed:String = s"${segID}\t${segChr}\t${segStart}\t${segEnd}"
+  override def toBed:String = s"chr${segChr}\t${segStart}\t${segEnd}\t${segID}"
 
   //def segmentationName:String = segID.split(":")(0)
 }

@@ -4,7 +4,7 @@ organization := "com.github.oddodaoddo"
 
 name := "episb-provider"
 
-version := "0.1.0-SNAPSHOT"
+version := "0.4.0"
 
 scalaVersion := "2.12.8"
 
