@@ -451,12 +451,6 @@ class episbRestServlet extends ScalatraServlet
   // and serve as a .gz file
   get("/experiments/get/BySegmentationName/:segName") {
 
-    def sequence[A](a: List[Option[A]]): Option[List[A]] =
-    a match {
-      case Nil => Some(Nil)
-      case h :: t => h flatMap (hh => sequence(t) map (hh :: _))
-    }
-
     val segName:String = {
       val p = params("segName").toLowerCase
       if (p.contains("::"))
@@ -494,7 +488,7 @@ class episbRestServlet extends ScalatraServlet
       // here we get to use the elastic scroll API to build the .gz file
       val qb = QueryBuilders.regexpQuery("segmentID", segName + ".*")
 
-      val scrollSize:Int = (1000 / expNum) * expNum // should be <= 1000
+      val scrollSize:Int = (10000 / expNum) * expNum // should be <= 10000
 
       // set each request to the number of experiments
       // this means we will always get back a full row for the file
@@ -509,14 +503,14 @@ class episbRestServlet extends ScalatraServlet
 
       // now we can start building the file on disk
       do {
-        val hass:Vector[(String,String,Float)] = sequence(response.getHits.getHits.toList.map(h => try {
+        val hass:Vector[(String,String,Float)] = response.getHits.getHits.toList.map(h => try {
           val j = parse(h.toString)
           // get the segmentation from the response
           val jj = (j).extract[matrixLevel2]
           Some(jj)
         } catch {
           case e:Exception => None
-        })).get.toVector.map(x => (x._source.segmentID, x._source.experiment.experimentName, x._source.annValue))
+        }).toVector.map(x => (x.get._source.segmentID, x.get._source.experiment.experimentName, x.get._source.annValue))
 
         // process the block of data in expNum blocks
         val slices:List[Vector[(String,String,Float)]] = (for {
