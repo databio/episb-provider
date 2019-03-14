@@ -474,22 +474,12 @@ class episbRestServlet extends ScalatraServlet
 
     if (matrix) {
       // get number of experiments per desired segmentation
-      val expNum:Long = {
+      val expNum:Int = {
         try {
           val qb = QueryBuilders.regexpQuery("segmentationName", segName + ".*")
-          esclient.prepareSearch("interfaces").setQuery(qb).setSize(0).get.getHits.getTotalHits
+          esclient.prepareSearch("interfaces").setQuery(qb).setSize(0).get.getHits.getTotalHits.toInt
         } catch {
-          case e:Exception => 0
-        }
-      }
-
-      // get number of segments in the segmentation
-      val segNum:Long = {
-        try {
-          val qb = QueryBuilders.regexpQuery("segID", segName + ".*")
-          esclient.prepareSearch("regions").setSize(0).get.getHits.getTotalHits
-        } catch {
-          case e:Exception => 0
+          case e:Exception => 0.toInt
         }
       }
 
@@ -512,25 +502,32 @@ class episbRestServlet extends ScalatraServlet
         addSort("segmentID.keyword", SortOrder.ASC).
         addSort("experiment.experimentName.keyword", SortOrder.ASC).
         setScroll(new TimeValue(60000)).
-        setSize(expNum.toInt).
+        setSize(expNum*100).
         get
 
       // now we can start building the file on disk
       do {
-        //response.getHits.getHits.foreach(println(_))
-        // convert each JSON document to a single row of format segmentID:annValue
-        val hass:Option[List[matrixLevel2]] = sequence(response.getHits.getHits.toList.map(h => try {
+        val hass:Vector[(String,String,Float)] = sequence(response.getHits.getHits.toList.map(h => try {
           val j = parse(h.toString)
           // get the segmentation from the response
           val jj = (j).extract[matrixLevel2]
           Some(jj)
         } catch {
           case e:Exception => None
-        }))
+        })).get.toVector.map(x => (x._source.segmentID, x._source.experiment.experimentName, x._source.annValue))
 
-        val rowAnns:List[Float] = hass.get.map(x => x._source.annValue)
-        val row = hass.get.head._source.segmentID + rowAnns.mkString("\t")
-        bw.write(row + "\n")
+        hass.foreach(x => println(x))
+
+        // process the block of data in expNum blocks
+        val slices:List[Vector[(String,String,Float)]] = (for {
+          i <- 0 until 100 by expNum
+        }  yield hass.slice(i*expNum, i*expNum+expNum)).toList
+
+        slices.foreach(s => println(s))
+
+        val rowAnns:List[(String,Vector[Float])] = slices.map(b => (b.head._1,b.map(_._3)))
+        val rows:List[String] = rowAnns.map(r => r._1 + "\t" + r._2.mkString("\t"))
+        rows.foreach(row => bw.write(row + "\n"))
 
         // get the new set of rows from elastic
         response = esclient.prepareSearchScroll(response.getScrollId).setScroll(new TimeValue(60000)).execute.actionGet
