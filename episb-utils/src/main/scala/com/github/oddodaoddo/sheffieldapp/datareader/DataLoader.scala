@@ -303,9 +303,11 @@ class DummyLoader(
   // first load the segmentation, if we were told to
   // FIXME: below is a bit of a side-effect so not strictly FP
   val throwaway:Boolean = if (!skipsegmentation) {
+    var idCnt:Int = -1 // FIXME: a quick, anti-FP fix, will make it right later
     val segments:List[Segment] = lines.map(_.splits.map(ln => {
       // create a segment
-      val segID = segName + "::" + ln(0)
+      idCnt = idCnt + 1
+      val segID = segName + "::Segment" + idCnt.toString
       val chr = ln(1).slice(3, ln(0).size)
       val segStart = ln(2).toInt
       val segEnd = ln(3).toInt
