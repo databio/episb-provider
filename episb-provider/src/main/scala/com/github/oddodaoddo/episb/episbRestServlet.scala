@@ -31,7 +31,7 @@ import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.unit.TimeValue
-import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.search.sort.SortOrder
 
 import com.typesafe.scalalogging.LazyLogging
 
@@ -480,10 +480,10 @@ class episbRestServlet extends ScalatraServlet
       // non-mutable variables, do/while - yuck!!
       // create a random temporary file first
       val fname:String = randomUUID().toString
-      val tempDir:File = new File(System.getProperty("java.io.tmpdir"));
-      val tempFile:File = File.createTempFile(fname, ".tmp", tempDir);
-      val fileWriter:FileWriter = new FileWriter(tempFile, true);
-      val bw:BufferedWriter = new BufferedWriter(fileWriter);
+      val tempDir:File = new File(System.getProperty("java.io.tmpdir"))
+      val tempFile:File = File.createTempFile(fname, ".tmp", tempDir)
+      val fileWriter:FileWriter = new FileWriter(tempFile, true)
+      val bw:BufferedWriter = new BufferedWriter(fileWriter)
 
       // here we get to use the elastic scroll API to build the .gz file
       val qb = QueryBuilders.regexpQuery("segmentID", segName + ".*")
