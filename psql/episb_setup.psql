@@ -1,0 +1,23 @@
+CREATE TYPE chromtype AS ENUM('', 'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX', 'chrY');
+
+CREATE TABLE segments (
+"segmentID" serial PRIMARY KEY,
+"chrom" chromtype,
+"start" integer NOT NULL,
+"end" integer NOT NULL, 
+"clusterID" SMALLINT NOT NULL, 
+"distance" FLOAT NOT NULL);
+
+INDEX("chrom"),
+INDEX("start"),
+INDEX("end"),
+INDEX("segmentID"));
+
+CREATE INDEX pos ON Segments (chrom);
+CREATE INDEX start ON Segments (start);
+CREATE INDEX "end" ON Segments ("end");
+
+
+# describe table with:
+\d segments
+
