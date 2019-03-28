@@ -4,9 +4,7 @@ CREATE TABLE segments (
 "segmentID" serial PRIMARY KEY,
 "chrom" chromtype,
 "start" integer NOT NULL,
-"end" integer NOT NULL, 
-"clusterID" SMALLINT NOT NULL, 
-"distance" FLOAT NOT NULL);
+"end" integer NOT NULL) 
 
 CREATE INDEX pos_index ON segments (chrom);
 CREATE INDEX start_index ON segments (start);
