@@ -1,23 +1,63 @@
+DROP TABLE annotations CASCADE;
+DROP TABLE studies CASCADE;
+DROP TABLE authors CASCADE;
+DROP TABLE experiments CASCADE;
+DROP TABLE segments CASCADE;
+DROP TABLE segmentations CASCADE;
+DROP TYPE chromtype;
+
 CREATE TYPE chromtype AS ENUM('', 'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX', 'chrY');
 
 CREATE TABLE segments (
-"segmentID" serial PRIMARY KEY,
-"chrom" chromtype,
-"start" integer NOT NULL,
-"end" integer NOT NULL, 
-"clusterID" SMALLINT NOT NULL, 
-"distance" FLOAT NOT NULL);
+  segmentID SERIAL PRIMARY KEY,
+  chrom chromtype,
+  start INTEGER NOT NULL,
+  "end" INTEGER NOT NULL
+); 
 
-INDEX("chrom"),
-INDEX("start"),
-INDEX("end"),
-INDEX("segmentID"));
+CREATE TABLE segmentations (
+  name VARCHAR(256) UNIQUE,
+  segmentID SERIAL REFERENCES segments(segmentID),
+  PRIMARY KEY (name, segmentID)
+);
 
-CREATE INDEX pos ON Segments (chrom);
-CREATE INDEX start ON Segments (start);
-CREATE INDEX "end" ON Segments ("end");
+CREATE TABLE authors (
+  fname VARCHAR(256) NOT NULL,
+  lname VARCHAR(256) NOT NULL,
+  email VARCHAR(256) PRIMARY KEY NOT NULL
+);
 
+CREATE TABLE experiments (
+  name VARCHAR(256) PRIMARY KEY,
+  author_email VARCHAR(256) REFERENCES authors(email),
+  protocol VARCHAR(256),
+  cell_type VARCHAR(256),
+  species VARCHAR(256),
+  tissue VARCHAR(256),
+  antibody VARCHAR(256),
+  treatment VARCHAR(256),
+  description VARCHAR(2014)
+);
+  
+CREATE TABLE studies (
+  id SERIAL PRIMARY KEY,
+  author_email VARCHAR(256) REFERENCES authors(email),
+  manuscript VARCHAR(256),
+  description VARCHAR(1024),
+  sdate DATE NOT NULL
+);
 
-# describe table with:
-\d segments
+CREATE TABLE annotations (
+  id SERIAL PRIMARY KEY,
+  segmentation_name VARCHAR(256) REFERENCES segmentations(name),
+  segmentID SERIAL REFERENCES segments(segmentID),
+  value REAL NOT NULL,
+  exp_name VARCHAR(256) REFERENCES experiments(name),
+  study_id SERIAL REFERENCES studies(id)
+);
 
+CREATE INDEX pos_index ON segments (chrom);
+CREATE INDEX start_index ON segments (start);
+CREATE INDEX end_index ON segments ("end");
+CREATE INDEX segmentations_index on segmentations (name, segmentID);
+CREATE INDEX annotations_index on annotations (id, segmentation_name, segmentID);
