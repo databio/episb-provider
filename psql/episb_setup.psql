@@ -8,16 +8,6 @@ CREATE TABLE segments (
 "clusterID" SMALLINT NOT NULL, 
 "distance" FLOAT NOT NULL);
 
-INDEX("chrom"),
-INDEX("start"),
-INDEX("end"),
-INDEX("segmentID"));
-
-CREATE INDEX pos ON Segments (chrom);
-CREATE INDEX start ON Segments (start);
-CREATE INDEX "end" ON Segments ("end");
-
-
-# describe table with:
-\d segments
-
+CREATE INDEX pos_index ON segments (chrom);
+CREATE INDEX start_index ON segments (start);
+CREATE INDEX end_index ON segments ("end");
