@@ -6,7 +6,7 @@ if len(sys.argv) != 5:
     sys.exit(-1)
 
 try:
-    o = open("/home/maketo/dev/sheffield/segmentations/dhs112_v3.bed", "r")
+    o = open(sys.argv[1], "r")
     conn = psycopg2.connect(host="localhost", database="episb", user="postgres", password="episb123")
     cur = conn.cursor()
 
