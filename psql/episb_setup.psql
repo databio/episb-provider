@@ -13,7 +13,7 @@ CREATE TABLE segmentations (
 );
 
 CREATE TABLE segments (
-  segmentID SERIAL NOT NULL PRIMARY KEY,
+  segmentID INTEGER NOT NULL PRIMARY KEY,
   segmentation_name VARCHAR(256) REFERENCES segmentations(name),
   chrom chromtype,
   start INTEGER NOT NULL,
