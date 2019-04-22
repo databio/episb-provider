@@ -17,9 +17,12 @@ import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
 
-trait ElasticConnector {
-  // read config file
-  private val conf = ConfigFactory.load()
+trait DBConnector {
+  val conf = ConfigFactory.load()
+}
+
+trait ElasticConnector extends DBConnector {
+  // Read config file
   private val settings:Settings = Settings.builder().
     put("cluster.name", conf.getString("episb-utils.elastic-cluster-name")).build()
   val esclient = new PreBuiltTransportClient(settings).
