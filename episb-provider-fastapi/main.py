@@ -26,7 +26,7 @@ async def fromSegment(chr:str, start:int, end:int):
     if not chr in chrom_enum:
         return {"message": "Error: chromosome entered is not correct"}
     # define sql query (hardcoded here for now)
-    sqlq = """SELECT * from segments where chrom = %s AND start >= %d AND 'end' <= %d"""
+    sqlq = """SELECT * from segments where chrom = %s AND start > %s AND "end" < %s"""
     # run postgres query at this point
     try:
         cur = conn.cursor()
