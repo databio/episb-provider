@@ -26,7 +26,7 @@ async def fromSegment(chr:str, start:int, end:int):
     if not chr in chrom_enum:
         return {"message": "Error: chromosome entered is not correct"}
     # define sql query (hardcoded here for now)
-    sqlq = """SELECT * from segments where chrom = %s AND start > %s AND "end" < %s"""
+    sqlq = """SELECT * FROM segments WHERE chrom = %s AND start > %s AND "end" < %s"""
     # run postgres query at this point
     try:
         cur = conn.cursor()
@@ -34,8 +34,23 @@ async def fromSegment(chr:str, start:int, end:int):
         res = cur.fetchall()
         return {"message": res}
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        return {"error": error.pgerror}
     finally:
-        if conn is not None:
-            conn.close()
+        if cur is not None:
+            cur.close()
     
+@app.get("/segments/find/BySegmentID/:segID")
+async def findBySegmentID(segID:int):
+    if segID < 0:
+        return {"message": "segID must be a positive number."}
+    sqlq = """SELECT * FROM segments WHERE segmentid = %s"""
+    try:
+        cur = conn.cursor()
+        cur.execute(sqlq, [segID])
+        res = cur.fetchall()
+        return {"message": res}
+    except (Exception, psycopg2.DatabaseError) as error:
+        return {"error": error.pgerror}
+    finally:
+        if cur is not None:
+            cur.close()
