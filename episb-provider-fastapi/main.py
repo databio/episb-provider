@@ -90,3 +90,19 @@ async def getSegmentsBySegmentationName(segName:str):
     finally:
         if cur is not None:
             cur.close()
+
+@app.get("/segmentations/list/all")
+async def listSegmentations():
+    sqlq = """SELECT * FROM segmentations"""
+    try:
+        cur = conn.cursor()
+        cur.execute(sqlq)
+        res = cur.fetchall()
+        return {"message": res}
+    except psycopg2.Error as error:
+        return {"error": error.pgerror}
+    except Exception as e:
+        return {"error": e.args[0]}
+    finally:
+        if cur is not None:
+            cur.close()
