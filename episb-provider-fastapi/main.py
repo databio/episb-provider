@@ -33,8 +33,10 @@ async def fromSegment(chr:str, start:int, end:int):
         cur.execute(sqlq, (chr, start, end))
         res = cur.fetchall()
         return {"message": res}
-    except (Exception, psycopg2.DatabaseError) as error:
-        return {"error": error.pgerror}
+    except psycopg2.DatabaseError as pgerror:
+        return {"error": pgerror.pgerror}
+    except Exception as e:
+        return {"error": e.args[0]}
     finally:
         if cur is not None:
             cur.close()
@@ -49,8 +51,26 @@ async def findBySegmentID(segID:int):
         cur.execute(sqlq, [segID])
         res = cur.fetchall()
         return {"message": res}
-    except (Exception, psycopg2.DatabaseError) as error:
+    except psycopg2.DatabaseError as pgerror:
+        return {"error": pgerror.pgerror}
+    except Exception as e:
+        return {"error": e.args[0]}
+    finally:
+        if cur is not None:
+            cur.close()
+
+@app.get("/segmentations/get/ByName/:segName")
+async def getSegmentationByName(segName:str):
+    sqlq = """SELECT * FROM segments WHERE segmentation_name = %s"""
+    try:
+        cur = conn.cursor()
+        cur.execute(sqlq, [segName])
+        res = cur.fetchall()
+        return {"message": res}
+    except psycopg2.Error as error:
         return {"error": error.pgerror}
+    except Exception as e:
+        return {"error": e.args[0]}
     finally:
         if cur is not None:
             cur.close()
