@@ -2,9 +2,15 @@
 
 The same APi calls implemented in Scalatra/elastic are now implemented in [FastAPI](https://fastapi.tiangolo.com/) and [PostgreSQL](https://www.postgresql.org/).
 
-# Docker #
+We run everything in Docker but if you have a local PostgreSQL instance, you can just run it locally (just load the data as below). The episb-provider can be run in test mode buy doing the following:
 
-We run everything in Docker:
+``
+git clone https://github.com/databio/episb-provider
+cd episb-provider/episb-provider-fastapi/app
+uvicorn main:app --reload
+``
+
+You will need Python 3.6 (at least), and uvicorn, fastapi, aiofiles and psycopg2 Python modules (available via Pip). Otherwise, see below on how to run things in Docker.
 
 ## Run PostgreSQL in Docker ##
 
