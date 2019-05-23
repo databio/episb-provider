@@ -18,7 +18,7 @@ async def root():
     return {"message": "EPISB HUB by Databio lab"}
 
 @app.get("/segments/get/fromSegment/:chr/:start/:end")
-async def fromSegment(chr:str, start:int, end:int, all:bool=None):
+async def fromSegment(chr:str=Query(default="",min_length=1,max_length=5,regex="^(chr)?([0-9]+)|[XYxy]"), start:int=Query(default=0), end:int=Query(default=0), all:bool=None):
     # validate start/end input
     if start>end:
         return {"message": "start value > end value"}
@@ -54,7 +54,7 @@ async def fromSegment(chr:str, start:int, end:int, all:bool=None):
 
 # segID is seg_name::int
 @app.get("/segments/find/BySegmentID/:segID")
-async def findBySegmentID(segID:str=Query(default="", min_length=3, regex="^[a-zA-Z0-9]+::[0-9]+"), all:bool=True):
+async def findBySegmentID(segID:str=Query(default="", min_length=3, regex="^[a-zA-Z0-9]+::[0-9]+"), all:bool=None):
     seg_groups = segID.split("::")
     seg_name = seg_groups[0]
     segID = int(seg_groups[1])
@@ -191,7 +191,6 @@ async def getAnnotationsBySegmentationName(segName:str = Query(default="", min_l
         cur = conn.cursor('server_side_cursor')
         cur.execute(sqlq, [segName])
         dbres = cur.fetchall()
-        print(dbres[0])
         res = []
         for ann in dbres:
             experiment = Experiment(**dict(name=ann[4], protocol="",cell_type="", species="", tissue="", antibody="", treatment="", description=""))
@@ -207,6 +206,56 @@ async def getAnnotationsBySegmentationName(segName:str = Query(default="", min_l
         #        for item in rows:
         #            f_out.write(','.join(map(str, item))+'\n')
         #    return FileResponse(f_out.name, media_type="text/plain")
+    except psycopg2.DatabaseError as pgerror:
+        raise HTTPException(status_code=500, detail="Database error")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=e.args[0])
+    finally:
+        if cur is not None:
+            cur.close()
+
+@app.get("/experiments/list/BySegmentationName/:segName")
+async def listExperimentsBySegmentationName(segName:str = Query(default="", min_length=1, regex="^[a-zA-Z0-9]+")):
+    class TempRes(BaseModel):
+        exp_name: str
+
+    # basic query below
+    sqlq = """SELECT DISTINCT exp_name FROM annotations WHERE segmentation_name = %s"""
+    try:
+        # use a server side cursor to speed things up
+        cur = conn.cursor()
+        cur.execute(sqlq, [segName])
+        dbres = cur.fetchall()
+        res = [TempRes(**dict(exp_name=dbr[0])) for dbr in dbres]
+        return {"message": res}        
+    except psycopg2.DatabaseError as pgerror:
+        raise HTTPException(status_code=500, detail="Database error")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=e.args[0])
+    finally:
+        if cur is not None:
+            cur.close()
+
+@app.get("/experiments/get/ByRegionID/:segID")
+async def getExperimentsByRegionID(segID:str=Query(default="", min_length=3, regex="^[a-zA-Z0-9]+::[0-9]+"), all:bool=None):
+    seg_groups = segID.split("::")
+    seg_name = seg_groups[0]
+    segID = int(seg_groups[1])
+    if segID < 0:
+        return {"message": "segID must be a positive number."}
+    sqlq = """SELECT * FROM annotations WHERE segmentation_name = %s AND segmentid = %s"""
+    if all is None or (all is not None and not all):
+        sqlq += " LIMIT(%d)" % limit
+    try:
+        # use a server side cursor to speed things up
+        cur = conn.cursor()
+        cur.execute(sqlq, [seg_name, segID])
+        dbres = cur.fetchall()
+        res = []
+        for ann in dbres:
+            experiment = Experiment(**dict(name=ann[4], protocol="",cell_type="", species="", tissue="", antibody="", treatment="", description=""))
+            res = [Annotation(**dict(regionID=ann[1]+"::"+str(ann[2]), value=ann[3], experiment=experiment, study=study)) for ann in dbres]
+        return {"message": res}        
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
