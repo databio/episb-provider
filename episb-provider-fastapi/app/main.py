@@ -176,7 +176,7 @@ async def getAnnotationsByExperimentName(expName:str, op1:str=None, op2:str=None
             cur.close()
 
 @app.get("/experiments/get/BySegmentationName/:segName")
-async def getAnnotationsBySegmentationName(segName:str, matrix:bool=None, all:bool=None):
+async def getAnnotationsBySegmentationName(segName:str = Query(default="", min_length=1, regex="^[a-zA-Z0-9]+"), matrix:bool=None, all:bool=None):
     # basic query below
     sqlq = """SELECT * FROM annotations WHERE segmentation_name = %s"""
     # add up the rest of the query if parameters were passed in
