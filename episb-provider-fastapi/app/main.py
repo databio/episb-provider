@@ -5,6 +5,7 @@ import psycopg2
 from starlette.responses import FileResponse
 import tempfile
 from datetime import datetime
+import re
 
 # some global defaults
 limit = 100
@@ -17,22 +18,33 @@ app = FastAPI()
 async def root():
     return {"message": "EPISB HUB by Databio lab"}
 
-@app.get("/segments/get/fromSegment/:chr/:start/:end")
-async def fromSegment(chr:str=Query(default="",min_length=1,max_length=5,regex="^(chr)?([0-9]+)|[XYxy]"), start:int=Query(default=0), end:int=Query(default=0), all:bool=None):
+def chr_normalize(chr):
+    if not chr.upper().startswith("CHR"):
+        chr = "chr"+chr.upper()
+    elif (chr.startswith("CHR") or chr.startswith("chr")):
+        chr = "chr" + chr[3:].upper()
+    return chr
+
+def pattern_regex_check(pattern:str, what:str):
+    # validate chr input
+    p = re.compile(pattern)
+    return p.match(what)
+
+@app.get("/segments/get/fromSegment/{chr}/{start}/{end}")
+async def fromSegment(chr:str,start:int,end:int,all:bool=None):
     # validate start/end input
     if start>end:
         return {"message": "start value > end value"}
     if start<0 or end<0:
         return {"message": "start or end value < 0"}
     # validate chr input
-    if not chr.startswith("chr"):
-        chr = "chr"+chr.upper()
-    elif (chr.startswith("CHR") or chr.startswith("chr")):
-        chr = "chr" + chr[3:].upper()
-    # hate leaving a dangling else
-    # check to see if we are within possible chromosomes
-    if not chr in chrom_enum:
-        return {"message": "Error: chromosome entered is not correct"}
+    if pattern_regex_check("^(chr)?([0-9]+)|[XYxy]",chr) != None:
+        chr = chr_normalize(chr)
+        if not chr in chrom_enum:
+            return {"message": "Error: chromosome entered is not correct"}
+    else:
+        return {"message": "Error: chromosome does not adhere to input format"}
+
     # define sql query (hardcoded here for now)
     sqlq = """SELECT * FROM segments WHERE chrom = %s AND start > %s AND "end" < %s"""
     if all is None or (all is not None and not all):
@@ -53,8 +65,10 @@ async def fromSegment(chr:str=Query(default="",min_length=1,max_length=5,regex="
             cur.close()
 
 # segID is seg_name::int
-@app.get("/segments/find/BySegmentID/:segID")
-async def findBySegmentID(segID:str=Query(default="", min_length=3, regex="^[a-zA-Z0-9]+::[0-9]+"), all:bool=None):
+@app.get("/segments/find/BySegmentID/{segID}")
+async def findBySegmentID(segID:str, all:bool=None):
+    if pattrn_regex_check("^[a-zA-Z0-9]+::[0-9]+",segID) == None:
+        return {"message": "segID does not adhere to input format"}
     seg_groups = segID.split("::")
     seg_name = seg_groups[0]
     segID = int(seg_groups[1])
@@ -80,10 +94,17 @@ async def findBySegmentID(segID:str=Query(default="", min_length=3, regex="^[a-z
         if cur is not None:
             cur.close()
 
-@app.get("/segmentations/get/ByName/:segName")
-async def getSegmentationByName(segName:str = Query(default="", min_length=1, regex="^[a-zA-Z0-9]+"), all:bool=None):
+def segname_check(segname:str):
+    pattrn = re.compile()
+    return re.match(segname)
+
+@app.get("/segmentations/get/ByName/{segName}")
+async def getSegmentationByName(segName:str, all:bool=None):
     class TempRes(BaseModel):
         segID: int
+
+    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+        return {"message": "segName does not adhere to input format"}
 
     sqlq = """SELECT segmentid FROM segments WHERE segmentation_name = %s"""
     if all is None or (all is not None and not all):
@@ -102,8 +123,11 @@ async def getSegmentationByName(segName:str = Query(default="", min_length=1, re
         if cur is not None:
             cur.close()
 
-@app.get("/segments/get/BySegmentationName/:segName")
-async def getSegmentsBySegmentationName(segName:str = Query(default="", min_length=1, regex="^[a-zA-Z0-9]+"), all:bool=None):
+@app.get("/segments/get/BySegmentationName/{segName}")
+async def getSegmentsBySegmentationName(segName:str, all:bool=None):
+    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+        return {"message": "segName does not adhere to input format"}
+
     sqlq = """SELECT * FROM segments WHERE segmentation_name = %s"""
     if all is None or (all is not None and not all):
         sqlq += " LIMIT(%d)" % limit
@@ -144,7 +168,7 @@ async def listSegmentations():
 # get all annotation values by experiment name
 # optional parameters are operations >/</= and values
 # FIXME: incomplete since it does not pull in experiment and study info from database, just makes it up!
-@app.get("/experiments/get/ByName/:expName")
+@app.get("/experiments/get/ByName/{expName}")
 async def getAnnotationsByExperimentName(expName:str, op1:str=None, op2:str=None, val1:float=None, val2:float=None, all:bool=None):
     experiment = Experiment(**dict(name=expName, protocol="",cell_type="", species="", tissue="", antibody="", treatment="", description=""))
 
@@ -175,8 +199,11 @@ async def getAnnotationsByExperimentName(expName:str, op1:str=None, op2:str=None
         if cur is not None:
             cur.close()
 
-@app.get("/experiments/get/BySegmentationName/:segName")
-async def getAnnotationsBySegmentationName(segName:str = Query(default="", min_length=1, regex="^[a-zA-Z0-9]+"), matrix:bool=None, all:bool=None):
+@app.get("/experiments/get/BySegmentationName/{segName}")
+async def getAnnotationsBySegmentationName(segName:str, matrix:bool=None, all:bool=None):
+    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+        return {"message": "segName does not adhere to input format"}
+
     # basic query below
     sqlq = """SELECT * FROM annotations WHERE segmentation_name = %s"""
     # add up the rest of the query if parameters were passed in
@@ -214,10 +241,13 @@ async def getAnnotationsBySegmentationName(segName:str = Query(default="", min_l
         if cur is not None:
             cur.close()
 
-@app.get("/experiments/list/BySegmentationName/:segName")
-async def listExperimentsBySegmentationName(segName:str = Query(default="", min_length=1, regex="^[a-zA-Z0-9]+")):
+@app.get("/experiments/list/BySegmentationName/{segName}")
+async def listExperimentsBySegmentationName(segName:str):
     class TempRes(BaseModel):
         exp_name: str
+
+    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+        return {"message": "segName does not adhere to input format"}
 
     # basic query below
     sqlq = """SELECT DISTINCT exp_name FROM annotations WHERE segmentation_name = %s"""
@@ -236,8 +266,11 @@ async def listExperimentsBySegmentationName(segName:str = Query(default="", min_
         if cur is not None:
             cur.close()
 
-@app.get("/experiments/get/ByRegionID/:segID")
-async def getExperimentsByRegionID(segID:str=Query(default="", min_length=3, regex="^[a-zA-Z0-9]+::[0-9]+"), all:bool=None):
+@app.get("/experiments/get/ByRegionID/{segID}")
+async def getExperimentsByRegionID(segID, all:bool=None):
+    if pattrn_regex_check("^[a-zA-Z0-9]+::[0-9]+",segID) == None:
+        return {"message": "segID does not adhere to input format"}
+
     seg_groups = segID.split("::")
     seg_name = seg_groups[0]
     segID = int(seg_groups[1])
