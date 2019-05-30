@@ -1,5 +1,5 @@
 from datastructures import *
-from postgres import conn
+from postgres import threaded_conn_pool
 from fastapi import FastAPI, HTTPException, Query
 import psycopg2
 from starlette.responses import FileResponse
@@ -50,12 +50,13 @@ async def fromSegment(chr:str,start:int,end:int,all:bool=None):
     if all is None or (all is not None and not all):
         sqlq += " LIMIT(%d)" % limit
     # run postgres query at this point
+    res = "error"
     try:
+        conn = threaded_conn_pool.getconn()
         cur = conn.cursor()
         cur.execute(sqlq, (chr, start, end))
         dbres = cur.fetchall()
         res = [Region(**dict(id=dbr[0],seg_name=dbr[1],chr=dbr[2],start=dbr[3],end=dbr[4],)) for dbr in dbres]
-        return {"message": res}
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -63,11 +64,13 @@ async def fromSegment(chr:str,start:int,end:int,all:bool=None):
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        return {"message": res}
 
 # segID is seg_name::int
 @app.get("/segments/find/BySegmentID/{segID}")
 async def findBySegmentID(segID:str, all:bool=None):
-    if pattrn_regex_check("^[a-zA-Z0-9]+::[0-9]+",segID) == None:
+    if pattern_regex_check("^[a-zA-Z0-9]+::[0-9]+",segID) == None:
         return {"message": "segID does not adhere to input format"}
     seg_groups = segID.split("::")
     seg_name = seg_groups[0]
@@ -77,15 +80,17 @@ async def findBySegmentID(segID:str, all:bool=None):
     sqlq = """SELECT * FROM segments WHERE segmentid = %s AND segmentation_name = %s"""
     if all is None or (all is not None and not all):
         sqlq += " LIMIT(%d)" % limit
+    res = "error"
     try:
+        conn = threaded_conn_pool.getconn()
         cur = conn.cursor()
         cur.execute(sqlq, [segID,seg_name])
         res = cur.fetchall()
         if (len(res)>0):
             dbr = res[0]
-            return {"message": Region(**dict(id=dbr[0],seg_name=dbr[1],chr=dbr[2],start=dbr[3],end=dbr[4],))}
+            res = Region(**dict(id=dbr[0],seg_name=dbr[1],chr=dbr[2],start=dbr[3],end=dbr[4],))
         else:
-            return {"message": "not found"}
+            res = "not found"
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -93,6 +98,9 @@ async def findBySegmentID(segID:str, all:bool=None):
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        return {"message":res}
+        
 
 def segname_check(segname:str):
     pattrn = re.compile()
@@ -103,18 +111,19 @@ async def getSegmentationByName(segName:str, all:bool=None):
     class TempRes(BaseModel):
         segID: int
 
-    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+    if pattern_regex_check("^[a-zA-Z0-9]+", segName) == None:
         return {"message": "segName does not adhere to input format"}
 
     sqlq = """SELECT segmentid FROM segments WHERE segmentation_name = %s"""
     if all is None or (all is not None and not all):
         sqlq += " LIMIT(%d)" % limit
+    res = "error"
     try:
+        conn = treaded_conn_pool.getconn()
         cur = conn.cursor()
         cur.execute(sqlq, [segName])
         dbres = cur.fetchall()
         res = [TempRes(**dict(segID=dbr[0])) for dbr in dbres]
-        return {"message": res}
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -122,21 +131,24 @@ async def getSegmentationByName(segName:str, all:bool=None):
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        return {"message": res}
 
 @app.get("/segments/get/BySegmentationName/{segName}")
 async def getSegmentsBySegmentationName(segName:str, all:bool=None):
-    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+    if pattern_regex_check("^[a-zA-Z0-9]+", segName) == None:
         return {"message": "segName does not adhere to input format"}
 
     sqlq = """SELECT * FROM segments WHERE segmentation_name = %s"""
     if all is None or (all is not None and not all):
         sqlq += " LIMIT(%d)" % limit
+    res = "error"
     try:
+        conn = threaded_conn_pool,getconn()
         cur = conn.cursor()
         cur.execute(sqlq, [segName])
         dbres = cur.fetchall()
         res = [Region(**dict(id=dbr[0],seg_name=dbr[1],chr=dbr[2],start=dbr[3],end=dbr[4],)) for dbr in dbres]
-        return {"message": res}
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -144,6 +156,8 @@ async def getSegmentsBySegmentationName(segName:str, all:bool=None):
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        return {"message": res}
 
 @app.get("/segmentations/list/all")
 async def listSegmentations():
@@ -151,12 +165,13 @@ async def listSegmentations():
         seg_name: str
 
     sqlq = """SELECT * FROM segmentations"""
+    res = "error"
     try:
+        conn = threaded_conn_pool.getconn()
         cur = conn.cursor()
         cur.execute(sqlq)
         dbres = cur.fetchall()
         res = [TempRes(**dict(seg_name=dbr[0])) for dbr in dbres]
-        return {"message": res}
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -164,6 +179,8 @@ async def listSegmentations():
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        return {"message": res}
 
 # get all annotation values by experiment name
 # optional parameters are operations >/</= and values
@@ -186,11 +203,11 @@ async def getAnnotationsByExperimentName(expName:str, op1:str=None, op2:str=None
     res = []
     try:
         # use a server side cursor to speed things up
+        conn = threaded_pool_conn.getconn()
         cur = conn.cursor('server_side_cursor')
         cur.execute(sqlq, [expName])
         dbres = cur.fetchall()
         res = [Annotation(**dict(regionID=ann[1]+"::"+str(ann[2]), value=ann[3], experiment=experiment, study=study)) for ann in dbres]
-        return {"message": res}
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -198,41 +215,45 @@ async def getAnnotationsByExperimentName(expName:str, op1:str=None, op2:str=None
     finally:
         if cur is not None:
             cur.close()
+        threaded_pool_conn.putconn(conn)
+        return {"message": res}
 
 @app.get("/experiments/get/BySegmentationName/{segName}")
 async def getAnnotationsBySegmentationName(segName:str, matrix:bool=None, all:bool=None):
-    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+    if pattern_regex_check("^[a-zA-Z0-9]+", segName) == None:
         return {"message": "segName does not adhere to input format"}
 
+    print("segName=%s" % segName)
+    print("matrix=%s,all=%s" % (matrix,all))
     # basic query below
     sqlq = """SELECT * FROM annotations WHERE segmentation_name = %s"""
     # add up the rest of the query if parameters were passed in
-    if matrix is not None:
+    if matrix is not None and matrix:
         # here we serve the results as a .gz file
-        sqlq_ap2 = """ GROUP BY exp_name"""
-        sqlq += sqlq_ap2
+        sqlq = """SELECT id,segmentation_name,segmentid,value,exp_name,study_id FROM annotations WHERE segmentation_name = %s GROUP BY exp_name"""
     if all is None or (all is not None and not all):
         sqlq += " LIMIT(%d)" % limit
     try:
         # use a server side cursor to speed things up
+        conn = threded_connection_pool.getconn()
         cur = conn.cursor('server_side_cursor')
         cur.execute(sqlq, [segName])
-        dbres = cur.fetchall()
-        res = []
-        for ann in dbres:
-            experiment = Experiment(**dict(name=ann[4], protocol="",cell_type="", species="", tissue="", antibody="", treatment="", description=""))
-            res = [Annotation(**dict(regionID=ann[1]+"::"+str(ann[2]), value=ann[3], experiment=experiment, study=study)) for ann in dbres]
-        return {"message": res}        
-        # create the output file
-        #with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f_out:
-        #    while True:
-        #        # fetch in 1000 increments
-        #        rows = cur.fetchmany(1000)
-        #        if not rows:
-        #            break
-        #        for item in rows:
-        #            f_out.write(','.join(map(str, item))+'\n')
-        #    return FileResponse(f_out.name, media_type="text/plain")
+        if matrix is not None and matrix and all is not None and all:
+            # create the output file
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f_out:
+                while True:
+                    # fetch in 1000 increments
+                    rows = cur.fetchmany(1000)
+                    if not rows:
+                        break
+                    for item in rows:
+                        f_out.write(','.join(map(str, item))+'\n')
+        else:
+            dbres = cur.fetchall()
+            res = []
+            for ann in dbres:
+                experiment = Experiment(**dict(name=ann[4], protocol="",cell_type="", species="", tissue="", antibody="", treatment="", description=""))
+                res = [Annotation(**dict(regionID=ann[1]+"::"+str(ann[2]), value=ann[3], experiment=experiment, study=study)) for ann in dbres]
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -240,24 +261,30 @@ async def getAnnotationsBySegmentationName(segName:str, matrix:bool=None, all:bo
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        if matrix is not None and matrix and all is not None and all:
+            return FileResponse(f_out.name, media_type="text/plain")
+        else:
+            return {"message": res}
 
 @app.get("/experiments/list/BySegmentationName/{segName}")
 async def listExperimentsBySegmentationName(segName:str):
     class TempRes(BaseModel):
         exp_name: str
 
-    if pattrn_regex_check("^[a-zA-Z0-9]+", segName) == None:
+    if pattern_regex_check("^[a-zA-Z0-9]+", segName) == None:
         return {"message": "segName does not adhere to input format"}
 
     # basic query below
     sqlq = """SELECT DISTINCT exp_name FROM annotations WHERE segmentation_name = %s"""
+    res = "error"
     try:
         # use a server side cursor to speed things up
+        conn = threaded_conn_pool.getconn()
         cur = conn.cursor()
         cur.execute(sqlq, [segName])
         dbres = cur.fetchall()
         res = [TempRes(**dict(exp_name=dbr[0])) for dbr in dbres]
-        return {"message": res}        
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -265,10 +292,12 @@ async def listExperimentsBySegmentationName(segName:str):
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        return {"message": res}
 
 @app.get("/experiments/get/ByRegionID/{segID}")
 async def getExperimentsByRegionID(segID, all:bool=None):
-    if pattrn_regex_check("^[a-zA-Z0-9]+::[0-9]+",segID) == None:
+    if pattern_regex_check("^[a-zA-Z0-9]+::[0-9]+",segID) == None:
         return {"message": "segID does not adhere to input format"}
 
     seg_groups = segID.split("::")
@@ -279,16 +308,16 @@ async def getExperimentsByRegionID(segID, all:bool=None):
     sqlq = """SELECT * FROM annotations WHERE segmentation_name = %s AND segmentid = %s"""
     if all is None or (all is not None and not all):
         sqlq += " LIMIT(%d)" % limit
+    res = []
     try:
         # use a server side cursor to speed things up
+        conn = threaded_conn_pool.getconn()
         cur = conn.cursor()
         cur.execute(sqlq, [seg_name, segID])
         dbres = cur.fetchall()
-        res = []
         for ann in dbres:
             experiment = Experiment(**dict(name=ann[4], protocol="",cell_type="", species="", tissue="", antibody="", treatment="", description=""))
             res = [Annotation(**dict(regionID=ann[1]+"::"+str(ann[2]), value=ann[3], experiment=experiment, study=study)) for ann in dbres]
-        return {"message": res}        
     except psycopg2.DatabaseError as pgerror:
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
@@ -296,3 +325,5 @@ async def getExperimentsByRegionID(segID, all:bool=None):
     finally:
         if cur is not None:
             cur.close()
+        threaded_conn_pool.putconn(conn)
+        return {"message": res}
