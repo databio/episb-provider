@@ -15,7 +15,10 @@ You will need Python 3.6 (at least), and uvicorn, fastapi, aiofiles and psycopg2
 ## Run PostgreSQL in Docker ##
 
 ```
-docker run --rm --name pg-docker -e POSTGRES_PASSWORD=episb123 -d -p 5432:5432 -v /mnt/elastic/postgres-data:/var/lib/postgresql/data -v /var/run/postgresql:/var/run/postgresql -v /tmp:/tmp postgres
+docker run --rm --name pg-docker -e POSTGRES_PASSWORD=episb123 -d -p 5432:5432 \
+  -v /mnt/elastic/postgres-data:/var/lib/postgresql/data \
+  -v /var/run/postgresql:/var/run/postgresql \
+  -v /tmp:/tmp postgres
 ```
 
 The password for the postgres database above is "episb123", it is running on standard postgres port 5432 and it is mounting a few local directories via Docker bind. These may or may not be necessary for your particular configuration. For the most part you may be able to "ditch" the use of the shared directories and just run
