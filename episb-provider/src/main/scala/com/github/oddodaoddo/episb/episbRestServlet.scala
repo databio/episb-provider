@@ -3,6 +3,8 @@ package com.github.oddodaoddo.episb
 import org.scalatra.{ContentEncodingSupport, ScalatraServlet}
 import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
 import org.scalatra.scalate.ScalateSupport
+import org.scalatra.ScalatraServlet
+import org.scalatra.swagger._
 
 import java.math.BigInteger
 import java.net.InetAddress
@@ -70,14 +72,27 @@ case class JsonSuccessBasic(result:List[String]) {
   }
 }
 
-class episbRestServlet extends ScalatraServlet 
+object EpisbProviderApiInfo extends ApiInfo(
+    "EPISB-Provider API",
+    "Docs for the EPISB-Provider API",
+    "http://episb.org",
+    "info@episb.org",
+    "MIT",
+    "http://opensource.org/licenses/MIT")
+
+class EpisbSwagger extends Swagger(Swagger.SpecVersion, "1.0.0", EpisbProviderApiInfo)
+
+class ResourcesApp(implicit val swagger: Swagger) extends ScalatraServlet with NativeSwaggerBase
+
+class episbRestServlet(implicit val swagger:Swagger) extends ScalatraServlet
+    with NativeSwaggerBase
     with ElasticConnector 
     with FileUploadSupport
     with ScalateSupport
     with ContentEncodingSupport 
     with LazyLogging {
 
-  implicit val formats = DefaultFormats
+  //implicit val formats = DefaultFormats
 
   // set physical limit on file size uploads (500Mb) - arbitrary right now
   // maybe in the future we support .gz to allow a bigger file upload
@@ -85,7 +100,7 @@ class episbRestServlet extends ScalatraServlet
 
   // get all provider-interface info
   // read config file
-  private val conf = ConfigFactory.load()
+  override val conf = ConfigFactory.load()
   private val providerName = conf.getString("episb-provider.provider-name")
   private val providerDescription = conf.getString("episb-provider.provider-description")
   private val providerInstitution = conf.getString("episb-provider.provider-institution")
