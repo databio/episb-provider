@@ -35,6 +35,13 @@ case class HitsAnnotation(total:Int,max_score:Int,hits:List[hitAnnotation])
 case class hitSegmentation(_index:String,_type:String,_id:String,_score:Int,_source:Segmentation)
 case class HitsSegmentation(total:Int,max_score:Int,hits:List[hitSegmentation])
 
+// these are defined for the matrix query
+case class experimentHit(experimentName:String)
+case class matrixQinfo(experiment:experimentHit, segmentID:String, annValue:Float, sort:List[String])
+case class matrixLevel2(_index:String,_type:String,_id:String,_score:AnyVal,_source:matrixQinfo)
+//case class matrixLevel1(total:Int, max_score:String, hits:List[matrixLevel2])
+
+// now define elastic's storage structures
 case class Segment(segID:String, segChr:String, segStart:Int, segEnd:Int) extends JSONLDable {
   override def partialJsonLD: JObject = {
     ("segID" -> segID) ~

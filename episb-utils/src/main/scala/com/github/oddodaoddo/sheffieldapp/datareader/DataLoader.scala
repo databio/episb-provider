@@ -303,9 +303,11 @@ class DummyLoader(
   // first load the segmentation, if we were told to
   // FIXME: below is a bit of a side-effect so not strictly FP
   val throwaway:Boolean = if (!skipsegmentation) {
+    var idCnt:Int = -1 // FIXME: a quick, anti-FP fix, will make it right later
     val segments:List[Segment] = lines.map(_.splits.map(ln => {
       // create a segment
-      val segID = segName + "::" + ln(0)
+      idCnt = idCnt + 1
+      val segID = segName + "::Segment" + idCnt.toString
       val chr = ln(1).slice(3, ln(0).size)
       val segStart = ln(2).toInt
       val segEnd = ln(3).toInt
@@ -330,7 +332,11 @@ class DummyLoader(
 
   // now write the annotations/experiment
   // by the column, one at a time
-  val annotations:Vector[Annotation] = lines.map(_.splits.map(ln => (ln(0), Try(ln(col).toFloat).toOption)).
+  var idCnt:Int = -1 // FIXME: another non-FP mutable variable
+  val annotations:Vector[Annotation] = lines.map(_.splits.map(ln => {
+    idCnt = idCnt + 1
+    ("Segment"+ idCnt.toString, Try(ln(col).toFloat).toOption)
+  }).
   filter(_._2.isDefined).map(x => Annotation(s"${segName}::${x._1}", x._2.get, experiment, study))).flatten
 
   // now write all the annotations

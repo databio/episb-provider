@@ -3,6 +3,8 @@ package com.github.oddodaoddo.episb
 import org.scalatra.{ContentEncodingSupport, ScalatraServlet}
 import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
 import org.scalatra.scalate.ScalateSupport
+import org.scalatra.ScalatraServlet
+import org.scalatra.swagger._
 
 import java.math.BigInteger
 import java.net.InetAddress
@@ -23,10 +25,15 @@ import org.elasticsearch.search.sort.{SortBuilder, SortBuilders}
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.TransportAddress
 import org.elasticsearch.index.query.{BoolQueryBuilder, MatchQueryBuilder, QueryBuilders, RangeQueryBuilder, TermQueryBuilder}
+import org.elasticsearch.search.aggregations.AggregationBuilders
+import org.elasticsearch.search.aggregations.bucket.terms.Terms
+import org.elasticsearch.search.aggregations.bucket._
+import org.elasticsearch.search.aggregations.metrics.tophits.TopHits
 import org.elasticsearch.index.query.QueryBuilders._
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.unit.TimeValue
+import org.elasticsearch.search.sort.SortOrder
 
 import com.typesafe.scalalogging.LazyLogging
 
@@ -65,14 +72,27 @@ case class JsonSuccessBasic(result:List[String]) {
   }
 }
 
-class episbRestServlet extends ScalatraServlet 
+object EpisbProviderApiInfo extends ApiInfo(
+    "EPISB-Provider API",
+    "Docs for the EPISB-Provider API",
+    "http://episb.org",
+    "info@episb.org",
+    "MIT",
+    "http://opensource.org/licenses/MIT")
+
+class EpisbSwagger extends Swagger(Swagger.SpecVersion, "1.0.0", EpisbProviderApiInfo)
+
+class ResourcesApp(implicit val swagger: Swagger) extends ScalatraServlet with NativeSwaggerBase
+
+class episbRestServlet(implicit val swagger:Swagger) extends ScalatraServlet
+    with NativeSwaggerBase
     with ElasticConnector 
     with FileUploadSupport
     with ScalateSupport
     with ContentEncodingSupport 
     with LazyLogging {
 
-  implicit val formats = DefaultFormats
+  //implicit val formats = DefaultFormats
 
   // set physical limit on file size uploads (500Mb) - arbitrary right now
   // maybe in the future we support .gz to allow a bigger file upload
@@ -80,7 +100,7 @@ class episbRestServlet extends ScalatraServlet
 
   // get all provider-interface info
   // read config file
-  private val conf = ConfigFactory.load()
+  override val conf = ConfigFactory.load()
   private val providerName = conf.getString("episb-provider.provider-name")
   private val providerDescription = conf.getString("episb-provider.provider-description")
   private val providerInstitution = conf.getString("episb-provider.provider-institution")
@@ -446,12 +466,6 @@ class episbRestServlet extends ScalatraServlet
   // and serve as a .gz file
   get("/experiments/get/BySegmentationName/:segName") {
 
-    def sequence[A](a: List[Option[A]]): Option[List[A]] =
-    a match {
-      case Nil => Some(Nil)
-      case h :: t => h flatMap (hh => sequence(t) map (hh :: _))
-    }
-
     val segName:String = {
       val p = params("segName").toLowerCase
       if (p.contains("::"))
@@ -468,41 +482,66 @@ class episbRestServlet extends ScalatraServlet
     }
 
     if (matrix) {
+      // get number of experiments per desired segmentation
+      val expNum:Int = {
+        try {
+          val qb = QueryBuilders.regexpQuery("segmentationName", segName + ".*")
+          esclient.prepareSearch("interfaces").setQuery(qb).setSize(0).get.getHits.getTotalHits.toInt
+        } catch {
+          case e:Exception => 0.toInt
+        }
+      }
+
       // non-mutable variables, do/while - yuck!!
       // create a random temporary file first
       val fname:String = randomUUID().toString
-      val tempDir:File = new File(System.getProperty("java.io.tmpdir"));
-      val tempFile:File = File.createTempFile(fname, ".tmp", tempDir);
-      val fileWriter:FileWriter = new FileWriter(tempFile, true);
-      val bw:BufferedWriter = new BufferedWriter(fileWriter);
+      val tempDir:File = new File(System.getProperty("java.io.tmpdir"))
+      val tempFile:File = File.createTempFile(fname, ".tmp", tempDir)
+      val fileWriter:FileWriter = new FileWriter(tempFile, true)
+      val bw:BufferedWriter = new BufferedWriter(fileWriter)
 
       // here we get to use the elastic scroll API to build the .gz file
       val qb = QueryBuilders.regexpQuery("segmentID", segName + ".*")
+
+      val scrollSize:Int = (10000 / expNum) * expNum // should be <= 10000
+
+      // set each request to the number of experiments
+      // this means we will always get back a full row for the file
       var response = esclient.prepareSearch("annotations").
-        setScroll(new TimeValue(60000)).
         setQuery(qb).
-        setSize(1000).
+        setFetchSource(Array("segmentID", "experiment.experimentName", "annValue"), null).
+        addSort("segmentID.keyword", SortOrder.ASC).
+        addSort("experiment.experimentName.keyword", SortOrder.ASC).
+        setScroll(new TimeValue(60000)).
+        setSize(scrollSize).
         get
 
       // now we can start building the file on disk
       do {
-        //response.getHits.getHits.foreach(println(_))
-        // convert each JSON document to a single row of format segmentID:annValue
-        val hass:Option[List[hitAnnotation]] = sequence(response.getHits.getHits.toList.map(h => try {
+        val hass:Vector[(String,Float)] = response.getHits.getHits.toVector.map(h => try {
           val j = parse(h.toString)
           // get the segmentation from the response
-          val jj = (j).extract[hitAnnotation]
+          val jj = (j).extract[matrixLevel2]
           Some(jj)
         } catch {
           case e:Exception => None
-        }))
-        val row:Option[List[String]] = hass.map(h => h.map(x => s"${x._source.segmentID},${x._source.annValue}"))
-        row.get.foreach(r => bw.write(r + "\n"))
+        }).map(x => (x.get._source.segmentID, x.get._source.annValue))
+
+        // process the block of data in expNum blocks
+        for {
+          i <- 0 until scrollSize / expNum
+          val slice:Vector[(String,Float)] = hass.slice(i*expNum, i*expNum+expNum)
+          val rowAnns:Vector[(String,Vector[Float])] = slice.map(b => (slice.head._1,slice.map(_._2))) 
+          val rows:Vector[String] = rowAnns.map(r => r._1 + "\t" + r._2.mkString("\t"))
+        } bw.write(rows.mkString("\n"))
+
+        // get the new set of rows from elastic
         response = esclient.prepareSearchScroll(response.getScrollId).setScroll(new TimeValue(60000)).execute.actionGet
       } while (response.getHits.getHits.length != 0)
 
       bw.close
       tempFile
+
     } else {
       try {
         // we are using a regex query on the first part of the UUID below
