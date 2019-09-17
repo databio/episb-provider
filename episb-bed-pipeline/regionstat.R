@@ -1,7 +1,21 @@
+library(GenomicRanges)
 library(GenomicDistributions)
+library(rtracklayer)
+library(ggplot2)
 
-# set query to bed file
+## the R script below depends on the query GRanges object
+## we operate on bed files so we need a way to get a bed file
+## into a GRanges object
 
+## first we need to extract bed filename
+args <- commandArgs(trailingOnly = TRUE)
+bedfname <- args[1]
+
+## and then we read it into GRanges object
+gr_obj <- import(bedfname)
+query <- split(gr_obj, gr_obj$name)
+
+### now we can proceed with GenomicDistributions extraction
 TSSdist = calcFeatureDistRefTSS(query, "hg38")
 g = plotFeatureDist(TSSdist, featureName="TSS")
 ggsave("bedname_tssdist.png", g)
